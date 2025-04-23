@@ -1,0 +1,19 @@
+/*
+
+In the future we implement physics
+collision
+
+1. First we factor, and abstract data/code
+
+2. we make a renderer,
+   where gui, and GLupdates will happen;
+
+3. Implement my own cglm/glm library
+
+4. Glogs to GCLogs
+
+5. Make your code bulletproof...
+
+My name will be GlenshC, cause I like C so much
+
+*/

@@ -1,0 +1,31 @@
+# Build directory
+/build/
+
+# Object files
+*.o
+
+# Executable files
+*.exe
+
+# Dependency files
+*.d
+
+# GLFW specific
+#/vendor/GLFW/*.a
+#/vendor/GLFW/*.o
+#/vendor/GLFW/*.d
+
+# MinGW specific
+*.exe
+*.a
+*.o
+
+# IDE or Editor specific files
+.vscode/
+.idea/
+
+# macOS specific
+.DS_Store
+
+# Windows specific
+Thumbs.db

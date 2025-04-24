@@ -35,7 +35,8 @@ BUILD_DIR := build
 # Source files (your code + glad/glfw if using source)
 C_SRC := $(wildcard $(SRC_DIR)/*.c) \
          $(wildcard $(VENDOR_DIR)/glad/*.c) \
-		 $(wildcard $(INCLUDE_DIR)/*.c)
+		 $(wildcard $(INCLUDE_DIR)/*.c) \
+		 $(wildcard $(SRC_DIR)/test/*.c)
 
 CXX_SRC := $(wildcard $(VENDOR_DIR)/cimgui/cimgui*.cpp) \
            $(wildcard $(VENDOR_DIR)/cimgui/imgui/imgui*.cpp) \

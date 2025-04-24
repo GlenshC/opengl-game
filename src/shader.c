@@ -4,131 +4,257 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include "g_string.h"
 #include "shader.h"
-#include "glogs.h"
+#include "gc_string.h"
+#include "gc_logs.h"
 
 #define freeSources(x, y) free(x); free(y);
+// typedef struct {
+//     unsigned int
+//         vertexID,
+//         fragmentID;
+//     GC_String 
+//         *vSource;
+//         *fSource;
+// } ShaderProgram_Shaders;
+
+/* 
+GS_Shader {
+    renderID;
+}
+GS_ShaderSourcePath {
+    vertexPath;
+    fragmentPath;
+}
+ShaderPrograms = {
+    GS_Shader : GS_ShaderSourcePath 
+    GS_Shader : GS_ShaderSourcePath 
+    GS_Shader : GS_ShaderSourcePath 
+    GS_Shader : GS_ShaderSourcePath 
+}
+
+recompiling the shader
+we want a recompile function
+where if we give a in use shader it should preserve it if there is an error
+*/
     
 
-static int CompileShader(unsigned int renderID, const char* string);
-static int LinkProgram(unsigned int renderID);
+static void GS_CompileProgramShaders(Shader *shader);
+static int GS_CompileShader(GS_ShaderID *renderID, const char *path, GLenum type);
+static GS_ProgramID GS_AttachShader(GS_ShaderID vID, GS_ShaderID fID);
+static int GS_LinkProgram(GS_ProgramID renderID);
+static int GS_Shader_IsActive(GS_ProgramID renderID);
 
 static char infoLog[1024];
-static int status;
+static GS_ProgramID GS_ActiveProgram;
+static Shader *GS_ActiveProgramPointer;
 
-// For creation use only, not for recompiling;
+/*
+    Returns 1 if the shader is currently in use;
+*/
 
-Shader *GCShader_CreateShader(const char* vertexPath, const char* fragmentPath)
+/*
+    Recompiles shader program. 
+    if recompilation fails it preserve the previous working renderID,
+    else it stores the new id to renderID, and deletes the old one; 
+*/
+void GS_Shader_RecompileProgram(Shader *shader)
 {
-    GLOGS_LOG("Creating Shader...\n");
-    Shader *shader;
-    unsigned int vID, fID;
+    unsigned int renderID = shader->renderID;
+    GC_LOG("Recompiling Shader...\n");
 
-    // impl string copy..
+    GS_CompileProgramShaders(shader);
+    if (shader->renderID == 0) {
     
-    vID = glCreateShader(GL_VERTEX_SHADER);
-    fID = glCreateShader(GL_FRAGMENT_SHADER);
-
-    G_String *vSource = G_ReadFile(vertexPath);
-    G_String *fSource = G_ReadFile(fragmentPath);
-    if (!vSource || !fSource)
-    {
-        GLOGS_LOG("Failed to open Shader Source.\n");
+        GC_LOG("Failed to recompile shader program.\n\n");
+        shader->renderID = renderID;
+    
+    } else {
+        GC_LOG("Successfully recompiled shader program.\n\n");
         
+        if (GS_Shader_IsActive(renderID)) 
+        {
+            GS_Shader_UseProgram(shader);
+        }
+        
+        glDeleteProgram(renderID);
+    }
+}
+
+/* 
+    Mallocs a shader program struct
+    returns NULL if memory allocation fails;
+    if Shader->renderID is 0 then a shader compiling/linking error occured
+*/
+Shader *GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath)
+{
+    GC_LOG("Creating Shader...\n");
+    Shader *shader = (Shader *)malloc(sizeof(Shader));
+    if (shader == NULL)
+    {
         return NULL;
     }
+
+    GC_strcpy(shader->vertexPath, vertexPath, 0, 512);
+    GC_strcpy(shader->fragmentPath, fragmentPath, 0, 512);
     
-    if (CompileShader(vID, vSource->string) || CompileShader(fID, fSource->string))
-    {
-        free(vSource);        
-        free(fSource);        
-        return NULL;
-    }
+    GS_CompileProgramShaders(shader);
 
-    free(vSource);        
-    free(fSource);        
-    
-    shader = (Shader *)malloc(sizeof(Shader));
-    
-    shader->renderID = glCreateProgram();
-
-    glAttachShader(shader->renderID, vID);
-    glAttachShader(shader->renderID, fID);
-
-    unsigned int linkStatus = LinkProgram(shader->renderID);
-    if (linkStatus);
-    {
-        shader->status = -1;
-        return shader;
-    }
-
-    GLOGS_LOG("Shader Created Succesfully!\n\n");
-    shader->status = 0;
+    GC_LOG("Shader Created Succesfully!\n\n");
     
     return shader;
 }
 
-void GCShader_UseShader(Shader *shader)
+void GS_Shader_UseProgram(Shader *shader)
 {
-    if (shader->renderID != -1)
+    if (shader->renderID == 0)
     {
-        GLOGS_LOG("Shader Active.\n");
-        glUseProgram(shader->renderID);
-    }
-    else
-        GLOGS_LOG("UseShader(Shader *shader):\n"
+        GC_LOG("UseShader(Shader *shader):\n"
                "Shader cannot be used,"
-               "an error occured while compiling and linking shader\n\n");
-    
+               "an error occured while create shader.\n\n");
+        return;
+    }
+    GC_LOG("Shader Active.\n\n");
+    glUseProgram(shader->renderID);
+    GS_ActiveProgram = shader->renderID;
+    GS_ActiveProgramPointer = shader;
+        
 }
 
+Shader *GS_Shader_GetActiveShader()
+{
+    if (GS_ActiveProgramPointer == NULL)
+        return NULL;
+    return GS_ActiveProgramPointer;
+}
 
-void GCShader_SetUniformMat4(Shader *shader, const char *name, void * mat4)
+void GS_Shader_SetUniformMat4(Shader *shader, const char *name, void * mat4)
 {
     int location = glGetUniformLocation(shader->renderID, name);
     glUniformMatrix4fv(location, 1, GL_FALSE, mat4);
 }
 
 
-/*
-    Private Help Functions
- */
-
-static int CompileShader(unsigned int renderID, const char *source)
+void GS_Shader_SetInt(Shader *shader, const char *name, int value)
 {
-    GLOGS_LOG("Compiling Shader...\n");
-    int logLen;
-    glShaderSource(renderID, 1, &source, NULL);
-    glCompileShader(renderID);
+    int location = glGetUniformLocation(shader->renderID, name);
+    glUniform1i(location, value);
+}
+
+
+
+
+/* 
+    PRIVATE FUNCTIONS
+*/
+
+static int GS_Shader_IsActive(GS_ProgramID renderID)
+{
+    if (renderID == GS_ActiveProgram)
+        return 1;
+    return 0;
+}
+
+/*
+Side-effects: shader->renderID is initialized to zero
+*/
+static void GS_CompileProgramShaders(Shader *shader) 
+{
+    unsigned int vID, fID;
+    shader->renderID = 0;
     
-    glGetShaderiv(renderID, GL_COMPILE_STATUS, &status);
+    if (GS_CompileShader(&vID, shader->vertexPath, GL_VERTEX_SHADER))
+        return;
+    
+    if (GS_CompileShader(&fID, shader->fragmentPath, GL_FRAGMENT_SHADER))
+        return;
+        
+    shader->renderID = GS_AttachShader(vID, fID);
+    return;
+}
+
+/*
+Side-effects: Deletes 's after linking;
+*/
+static int GS_CompileShader(GS_ShaderID *renderID, const char *path, GLenum type)
+{
+    GC_LOG("\nCompiling Shader...\n");
+    int logLen, status;
+    GC_String *source;
+    const char *p;
+    *renderID = glCreateShader(type);
+
+    source = GC_ReadFile(path);
+    if (!source)
+    {
+        glDeleteShader(*renderID);
+        return 1;
+    }
+    
+    p = source->string;
+    glShaderSource(*renderID, 1, &p, NULL);
+    glCompileShader(*renderID);
+    
+    free(source);
+    
+    glGetShaderiv(*renderID, GL_COMPILE_STATUS, &status);
     if (!status)
     {
-        GLOGS_LOG("Compile Status: Error\n");
-        glGetShaderInfoLog(renderID, 1024, &logLen, infoLog);
-        GLOGS_LOG("Shader Compilation Error:\n%s",infoLog);
+        glGetShaderInfoLog(*renderID, 1024, &logLen, infoLog);
+        GC_LOG("Shader Compilation Error:\n%s", infoLog);
         
         return 1;
     }
 
-    GLOGS_LOG("Successfully compiled shader!\n");
+    GC_LOG("Successfully compiled shader!\n");
     return 0;
 }
 
-static int LinkProgram(unsigned int renderID)
+/*
+Side-effects: Deletes ShaderID's after linking;
+*/
+static GS_ProgramID GS_AttachShader(GS_ShaderID vID, GS_ShaderID fID)
 {
-    unsigned int logLen;
+    int status;
+    GS_ProgramID renderID = glCreateProgram();
+    
+    if (renderID == 0)
+    {
+        GC_LOG("An error occured while creating program shader\n");
+        return 0;
+    }
+
+    glAttachShader(renderID, vID);
+    glAttachShader(renderID, fID);
+    status = GS_LinkProgram(renderID);
+
+    glDeleteShader(vID);
+    glDeleteShader(fID);
+
+    if (status)
+    {
+        glDeleteProgram(renderID);
+        renderID = 0;
+    }
+    
+    return renderID;
+}
+
+static int GS_LinkProgram(GS_ProgramID renderID)
+{
+    int status, logLen;
+    
     glLinkProgram(renderID);
+
     glGetProgramiv(renderID, GL_LINK_STATUS, &status);
     if (!status)
     {
         glGetProgramInfoLog(renderID, 1024, &logLen, infoLog);
-        GLOGS_LOG("Shader Program Linking Error:\n%s",infoLog);
+        GC_LOG("Shader Program Linking Error:\n%s",infoLog);
         
-        return 1;
+        return -1; // compilation error
     }
-    GLOGS_LOG("Successfully linked shader program!\n");
-    return 0;
+
+    GC_LOG("Successfully linked shader program!\n");
+    return 0; // error;
 }
-    

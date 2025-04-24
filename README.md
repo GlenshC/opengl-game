@@ -1,2 +1,2 @@
-# opengl-game
+# Gl-Strike
  

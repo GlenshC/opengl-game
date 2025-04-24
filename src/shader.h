@@ -1,24 +1,26 @@
 #if !defined(SHADER_H)
 #define SHADER_H
 
+#define GS_SHADER_MAX_PATH 512
 /*
-    Shader.status
-    0 - in use
-    1 - successfully compiled
-   -1 - an error occured
+    Shader.renderID
+     0 - an error occured
 */ 
 typedef struct {
     unsigned int renderID;
-    unsigned int status;
-    char *vertexPath;
-    char *vragmentPath;
-
+    char vertexPath[GS_SHADER_MAX_PATH];
+    char fragmentPath[GS_SHADER_MAX_PATH];
 } Shader;
 
+typedef unsigned int GS_ProgramID;
+typedef unsigned int GS_ShaderID;
+
 // returns NULL, if compilation error, else check status
-Shader *GCShader_CreateShader(const char* vertexPath, const char* fragmentPath);
-void GCShader_UseShader(Shader *shader);
-void GCShader_SetUniformMat4(Shader *shader, const char *name, void * mat4);
-// Shader setUniform(Shader *shader, );
+Shader *GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath);
+Shader *GS_Shader_GetActiveShader();
+void GS_Shader_RecompileProgram(Shader *shader);
+void GS_Shader_UseProgram(Shader *shader);
+void GS_Shader_SetUniformMat4(Shader *shader, const char *name, void * mat4);
+void GS_Shader_SetInt(Shader *shader, const char *name, int value);
 
 #endif

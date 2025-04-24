@@ -1,16 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "g_string.h"
-#include "glogs.h"
+#include "gc_string.h"
+#include "gc_logs.h"
 
-G_String *G_ReadFile(const char* path)
+GC_String *GC_ReadFile(const char* path)
 {
-    G_String *buffer;    
+    GC_String *buffer;    
     FILE *file;
     if (!(file = fopen(path, "r")))
     {
-        GLOGS_LOG("Failed to open file %s\n", path);
+        GC_LOG("Failed to open file %s\n", path);
         return NULL;
     }
     long len;
@@ -25,7 +25,7 @@ G_String *G_ReadFile(const char* path)
     fseek(file, 0, SEEK_SET);
 
     
-    buffer = (G_String *)malloc(sizeof(G_String) + (size_t)len);
+    buffer = (GC_String *)malloc(sizeof(GC_String) + (size_t)len);
     size_t bytesRead = fread(buffer->string, sizeof(char), (size_t)len, file);
 
     buffer->string[bytesRead] = '\0';
@@ -33,9 +33,21 @@ G_String *G_ReadFile(const char* path)
 
     fclose(file);
 
-    GLOGS_LOG("File %s read successfully.\n",path);
+    GC_LOG("File %s read successfully.\n",path);
 
     return buffer;
+}
+
+void *GC_strcpy_internal(char *dest, const char *src, int n, int max, const char* file, int line) 
+{
+    do {
+        if (n >= max) {
+            GC_LOG("%s:%d: BUFFER_OVERFLOW: Surpassed limit %d bytes\n", file, line, max);
+            break;
+        }
+
+        *(dest+(n++)) = *(src++);
+    } while (*src);
 }
 
 /* Implement read batch of file (malloc a batch of file)

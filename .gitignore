@@ -29,3 +29,7 @@
 
 # Windows specific
 Thumbs.db
+
+# Logs
+*.log
+imgui.ini

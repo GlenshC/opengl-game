@@ -9,7 +9,8 @@
 #include "cglm/cglm.h"
 
 #include "shader.h"
-#include "glogs.h"
+#include "texture.h"
+#include "gc_logs.h"
 
 //MY MACRO's PLACED HERE FOR NOW
 #ifndef offsetof
@@ -24,9 +25,8 @@
 
 #define igGetIO igGetIO_Nil
 
-
-
 GLFWwindow* window;
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height);
 
 typedef struct {
@@ -40,7 +40,7 @@ Shader *globalShader;
 int main(void)
 {
     if (!glfwInit()) {
-        GLOGS_LOG("Failed to initialize GLFW.");
+        GC_LOG("Failed to initialize GLFW.");
         return -1;
     }
     
@@ -51,7 +51,7 @@ int main(void)
     window = glfwCreateWindow(1280, 720, "Hello World", NULL, NULL);
     if (!window)
     {
-        GLOGS_LOG("Failed to create window.");
+        GC_LOG("Failed to create window.");
         glfwTerminate();
         return -1;
     }
@@ -59,38 +59,82 @@ int main(void)
     glfwMakeContextCurrent(window);
     
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        GLOGS_LOG("Failed to initialized GLAD.");
+        GC_LOG("Failed to initialized GLAD.");
         glfwTerminate();
         return -1;
     }
 
+    glEnable(GL_DEPTH_TEST);
     glfwSetFramebufferSizeCallback(window, Window_FramebufferSizeCallback);
+    glfwSetKeyCallback(window, key_callback);
+    
 
 //  v-sync
 //  glfwSwapInterval(1);
 
     // malloced shader;
-    globalShader = GCShader_CreateShader("./res/shaders/vertex.glsl", "./res/shaders/fragment.glsl");
+    globalShader = GS_Shader_CreateProgram("./res/shaders/vertex.glsl", "./res/shaders/fragment.glsl");
     if(globalShader)
-        GCShader_UseShader(globalShader);
+        GS_Shader_UseProgram(globalShader);
     
-    VertexData vertices[] = {
-        { {   0.0f,   0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f} },
-        { {   0.0f, 200.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f} },
-        { { 200.0f, 200.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f} },
-        { { 200.0f,   0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f} },
+     const float vertices[] = {
+        //object vertices     //texCoord
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
 
-        { {   0.0f,   0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f} },
-        { { 200.0f,   0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f} },
-        { { 200.0f, 200.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f} },
-        { {   0.0f, 200.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f} }
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
     };
 
-    unsigned int indices[] = {
-        0, 1, 2, 0, 2, 3,
-        4, 5, 6, 4, 6, 7,
+    vec3 cubePositions[] = {
+        { 0.0f,  0.0f,  0.0f},
+        { 2.0f,  5.0f, -15.0f},
+        {-1.5f, -2.2f, -2.5f},
+        {-3.8f, -2.0f, -12.3f},
+        { 2.4f, -0.4f, -3.5f},
+        {-1.7f,  3.0f, -7.5f},
+        { 1.3f, -2.0f, -2.5f},
+        { 1.5f,  2.0f, -2.5f},
+        { 1.5f,  0.2f, -1.5f},
+        {-1.3f,  1.0f, -1.5f}
     };
-
+    
     unsigned int vertex_array;
     glGenVertexArrays(1, &vertex_array);
     glBindVertexArray(vertex_array);
@@ -98,28 +142,46 @@ int main(void)
     unsigned int vertex_buffer;
     glGenBuffers(1, &vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-                          sizeof(*vertices), (void *) offsetof(VertexData, vData));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 
+                          sizeof(*vertices) * 5, (void *) 0);
+    
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE,
-                          sizeof(*vertices), (void *) offsetof(VertexData, pos));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE,
-                          sizeof(*vertices), (void *) offsetof(VertexData, color));
-
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE,
+                          sizeof(*vertices) * 5, (void *) (sizeof(float)*3));
+    
+/*
     unsigned int index_buffer;
     glGenBuffers(1, &index_buffer);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);    
-// 1280, 720
+*/
+
     mat4 orthoProj = GLM_MAT4_IDENTITY_INIT;
     glm_ortho(0.0f, 1280.0f, 720.0f, 0.0f, -1.0f, 2.0f, orthoProj);
 
-    GCShader_UseShader(globalShader);
-    GCShader_SetUniformMat4(globalShader, "u_Proj", orthoProj);
+    GS_Shader_UseProgram(globalShader);
+    GS_Shader_SetUniformMat4(globalShader, "u_Proj", orthoProj);
+
+    // Texture stuff
+
+    GSTexture faceTexture = GS_GenTexture2D("./res/textures/awesomeface.png", GL_RGBA);
+    GSTexture boxTexture = GS_GenTexture2D("./res/textures/container.jpg", GL_RGB);
+
+    // Transform stuff
+
+    mat4 modelMat = GLM_MAT4_IDENTITY_INIT, 
+         viewMat  = GLM_MAT4_IDENTITY_INIT, 
+         projMat  = GLM_MAT4_IDENTITY_INIT;
+
+    float scales = 1.0f;
+    vec3 rotation = {};
+    vec3 transVec = {};
+
+    glm_perspective(glm_rad(90.0f), 1280.0f/720.0f, 0.1f, 100.0f, projMat);
+    
     
     /*ImGUI stuff*/
     igCreateContext(NULL);
@@ -138,11 +200,28 @@ int main(void)
     while (!glfwWindowShouldClose(window))
     {
         glClearColor(clearColor[0], clearColor[1], clearColor[2], 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // GL Render
-        
-        glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, (void *)0); 
+        GS_Shader_SetInt(globalShader, "texture0", 0);
+        GS_Shader_SetInt(globalShader, "texture1", 1);
+        GS_ActiveTexture(0, GL_TEXTURE_2D, boxTexture);    
+        GS_ActiveTexture(1, GL_TEXTURE_2D, faceTexture);
+
+        glm_mat4_identity(modelMat);
+        glm_translate(modelMat, transVec);
+        glm_rotate(modelMat, glm_rad(rotation[0]), (vec3){1.0f, 0.0f, 0.0f});
+        glm_rotate(modelMat, glm_rad(rotation[1]), (vec3){0.0f, 1.0f, 0.0f});
+        glm_rotate(modelMat, glm_rad(rotation[2]), (vec3){0.0f, 0.0f, 1.0f});
+        glm_scale(modelMat, (vec3){scales, scales, scales});
+    
+        GS_Shader_SetUniformMat4(globalShader, "u_ModelMat", modelMat);
+        GS_Shader_SetUniformMat4(globalShader, "u_ProjMat", projMat);
+        // GS_Shader_SetUniformMat4(globalShader, "u_ViewMat", viewMat);
+            
+        //glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, (void *)0); 
+        glBindVertexArray(vertex_array);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // UI render
         // ImGUI Section START
@@ -155,8 +234,11 @@ int main(void)
             igBegin("Glensh App", NULL, 0);
             igColorEdit3("Clear Color",clearColor, 0);
             igSliderFloat("Font Scale", &fontScale, 1.0f, 4.0f, "%.1f", 0);
-            igDragFloat2("Blue Box", vertices[0].pos, 1.0f, 0.0f, 1080.0f, "%.1f", 0);
-            igDragFloat2("Green Box", vertices[4].pos, 1.0f, 0.0f, 1080.0f, "%.1f", 0); 
+            igDragFloat("Scale", &scales, 0.01f, -10.0f, 10.0f, "%.3f", 0);
+            igDragFloat3("Rotation", rotation, 0.01f, -360.0f, 360.0f, "%.2f", 0);
+            igDragFloat3("Translate", transVec, 0.1f, -1000.0f, 10.0f, "%.3f", 0);
+            //igDragFloat2("Blue Box", vertices[0].pos, 1.0f, 0.0f, 1080.0f, "%.1f", 0);
+            //igDragFloat2("Green Box", vertices[4].pos, 1.0f, 0.0f, 1080.0f, "%.1f", 0); 
             igText("Application average %.3f ms/frame (%.1f FPS)",
                    1000.0f / igGetIO()->Framerate,
                    igGetIO()->Framerate);
@@ -167,7 +249,7 @@ int main(void)
         igRender();
         io->FontGlobalScale = fontScale;    
         ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData()); // ImGUI Section END
-
+/*
         for (int i = 0; i < 2; i++)
         {
             int x = vertices[i*4].pos[0],
@@ -186,7 +268,7 @@ int main(void)
         }
         
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);        
-                
+*/                
         glfwSwapBuffers(window);
         glfwPollEvents();
         
@@ -200,4 +282,10 @@ int main(void)
 void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height)
 {
     glViewport(0, 0, width, height);    
+}
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_R && action == GLFW_PRESS)
+        GS_Shader_RecompileProgram(GS_Shader_GetActiveShader());
 }

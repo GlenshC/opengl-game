@@ -35,9 +35,9 @@ BUILD_DIR := build
 # Source files (your code + glad/glfw if using source)
 C_SRC := $(wildcard $(SRC_DIR)/*.c) \
          $(wildcard $(VENDOR_DIR)/glad/*.c) \
-         $(wildcard $(INCLUDE_DIR)/*.c)
+		 $(wildcard $(INCLUDE_DIR)/*.c)
 
-CXX_SRC := $(wildcard $(VENDOR_DIR)/cimgui/cimgui.cpp) \
+CXX_SRC := $(wildcard $(VENDOR_DIR)/cimgui/cimgui*.cpp) \
            $(wildcard $(VENDOR_DIR)/cimgui/imgui/imgui*.cpp) \
            $(wildcard $(VENDOR_DIR)/cimgui/imgui/backends/imgui_impl_glfw.cpp) \
            $(wildcard $(VENDOR_DIR)/cimgui/imgui/backends/imgui_impl_opengl3.cpp)
@@ -53,7 +53,7 @@ TARGET_DEBUG := $(BUILD_DIR)/debug
 TARGET_RELEASE := $(BUILD_DIR)/release
 
 # Debug flags
-DEBUG_FLAGS := -DGDEBUG
+DEBUG_FLAGS := -DGC_DEBUG
 
 # === RULES ===
 

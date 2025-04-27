@@ -119,8 +119,8 @@ void GS_TEST_FaceBox_Init()
 void GS_TEST_FaceBox_Update()
 {
     GS_Shader_UseProgram(shader);
-    GS_Shader_SetInt(shader, "texture0", 0);
-    GS_Shader_SetInt(shader, "texture1", 1);
+    GS_Shader_SetUniformInt(shader, "texture0", 0);
+    GS_Shader_SetUniformInt(shader, "texture1", 1);
     GS_ActiveTexture(0, GL_TEXTURE_2D, boxTexture);    
     GS_ActiveTexture(1, GL_TEXTURE_2D, faceTexture);
 

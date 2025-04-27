@@ -20,7 +20,8 @@ Shader *GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath
 Shader *GS_Shader_GetActiveShader();
 void GS_Shader_RecompileProgram(Shader *shader);
 void GS_Shader_UseProgram(Shader *shader);
-void GS_Shader_SetUniformMat4(Shader *shader, const char *name, void * mat4);
-void GS_Shader_SetInt(Shader *shader, const char *name, int value);
+void GS_Shader_SetUniformMat4(Shader *shader, const char *name, void * Mat4);
+void GS_Shader_SetUniformInt(Shader *shader, const char *name, int value);
+void GS_Shader_SetUniformVec3f(Shader *shader, const char *name, void * Vec3);
 
 #endif

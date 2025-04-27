@@ -35,7 +35,8 @@ GSTexture GS_GenTexture2D(char const *path, GLenum colorFormat)
     return id;
 }
 
-void GS_ActiveTexture(unsigned int index, GLenum texture_type, GSTexture texture) {
+void GS_ActiveTexture(unsigned int index, GLenum texture_type, GSTexture texture) 
+{
     glActiveTexture(GL_TEXTURE0 + index);
     glBindTexture(texture_type, texture);
 }

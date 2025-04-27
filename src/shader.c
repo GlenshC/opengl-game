@@ -100,7 +100,7 @@ Shader *GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath
     
     GS_CompileProgramShaders(shader);
 
-    GC_LOG("Shader Created Succesfully!\n\n");
+    GC_LOG("\nShader Created Succesfully!\n\n");
     
     return shader;
 }
@@ -114,7 +114,7 @@ void GS_Shader_UseProgram(Shader *shader)
                "an error occured while create shader.\n\n");
         return;
     }
-    GC_LOG("Shader Active.\n\n");
+    //GC_LOG("Shader Active.\n\n");
     glUseProgram(shader->renderID);
     GS_ActiveProgram = shader->renderID;
     GS_ActiveProgramPointer = shader;
@@ -128,14 +128,19 @@ Shader *GS_Shader_GetActiveShader()
     return GS_ActiveProgramPointer;
 }
 
-void GS_Shader_SetUniformMat4(Shader *shader, const char *name, void * mat4)
+void GS_Shader_SetUniformMat4(Shader *shader, const char *name, void * Mat4)
 {
     int location = glGetUniformLocation(shader->renderID, name);
-    glUniformMatrix4fv(location, 1, GL_FALSE, mat4);
+    glUniformMatrix4fv(location, 1, GL_FALSE, Mat4);
 }
 
+void GS_Shader_SetUniformVec3f(Shader *shader, const char *name, void *Vec3)
+{
+    int location = glGetUniformLocation(shader->renderID, name);
+    glUniform3fv(location, 1, Vec3);
+}
 
-void GS_Shader_SetInt(Shader *shader, const char *name, int value)
+void GS_Shader_SetUniformInt(Shader *shader, const char *name, int value)
 {
     int location = glGetUniformLocation(shader->renderID, name);
     glUniform1i(location, value);
@@ -243,6 +248,7 @@ static GS_ProgramID GS_AttachShader(GS_ShaderID vID, GS_ShaderID fID)
 static int GS_LinkProgram(GS_ProgramID renderID)
 {
     int status, logLen;
+    GC_LOG("\nLinking Shaders...\n");
     
     glLinkProgram(renderID);
 

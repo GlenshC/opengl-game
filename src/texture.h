@@ -2,6 +2,7 @@
 #define TEXTURE_H
 
 typedef unsigned int GSTexture;
+
 #define GS_TEXTURE_DEFAULT_PARAMETERS
 #include <glad/glad.h>
 

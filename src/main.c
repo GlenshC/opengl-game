@@ -11,36 +11,12 @@
 #include "shader.h"
 #include "texture.h"
 #include "gc_logs.h"
+#include "main.h"
 
 // #define GS_TEST_FACEBOX
 // #include "test/gs_test.h"
 
 //MY MACRO's PLACED HERE FOR NOW
-#ifndef offsetof
-#   define offsetof(TYPE, ELEMENT) ((size_t) &(((TYPE *)0)->ELEMENT)) 
-#   ifdef __has_builtin
-#       if __has_builtin(__builtin_offsetof)
-#           undef offsetof
-#           define offsetof(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
-#       endif
-#   endif
-#endif
-
-#define igGetIO igGetIO_Nil
-#define W_WIDTH 1280
-#define W_HEIGHT 720
-
-GLFWwindow* window;
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-static void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height);
-static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
-static void key_movement(GLFWwindow *window);
-
-typedef struct {
-    float vData[3];
-    float pos[3];
-    float color[3];
-} VertexData;
 
 typedef struct {
     vec3 position;
@@ -51,51 +27,36 @@ typedef struct {
     float yaw; // horizontal
 } GS_Camera;
 
-GS_Camera globalCamera;
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+static void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height);
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
+static void key_movement(GLFWwindow *window);
+
+GLFWwindow* window;
 float timeDelta;
 float timePrev;
 float timeCurr;
 
 static float movementSpeed = 2.5f;
 float sensitivity = 0.1;
-
 Shader *globalShader;
+GS_Camera globalCamera = {
+    {1.5f, -0.4f, 2.5f},
+    {0.0f, -1.0f, 0.0f},
+    {0.0f, 0.0f, 0.0f},
+    {0.0f, 1.0f, 0.0f},
+    7.2f,
+    240.0f
+};
+
 int main(void)
 {
-    if (!glfwInit()) {
-        GC_LOG("Failed to initialize GLFW.");
-        return -1;
-    }
-    
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    
-    window = glfwCreateWindow(W_WIDTH, W_HEIGHT, "Hello World", NULL, NULL);
-    if (!window)
-    {
-        GC_LOG("Failed to create window.");
-        glfwTerminate();
-        return -1;
-    }
-
-    glfwMakeContextCurrent(window);
-    
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        GC_LOG("Failed to initialized GLAD.");
-        glfwTerminate();
-        return -1;
-    }
-
-    glEnable(GL_DEPTH_TEST);
-    glfwSetFramebufferSizeCallback(window, Window_FramebufferSizeCallback);
-    glfwSetKeyCallback(window, key_callback);
-    glfwSetCursorPosCallback(window, cursor_position_callback);
+    GS_MAIN_INIT;
 
     // malloced shader;
     
-    Shader *lightShader = GS_Shader_CreateProgram("./res/shaders/vertex.glsl", "./res/shaders/lightCube_fragment.glsl");
-    globalShader = GS_Shader_CreateProgram("./res/shaders/vertex.glsl", "./res/shaders/fragment.glsl");
+    Shader *lightShader = GS_Shader_CreateProgram("./res/shaders/default_vertex.glsl", "./res/shaders/lightCube_fragment.glsl");
+    globalShader = GS_Shader_CreateProgram("./res/shaders/default_vertex.glsl", "./res/shaders/default_fragment.glsl");
     if(globalShader)
         GS_Shader_UseProgram(globalShader);
     
@@ -114,50 +75,7 @@ int main(void)
     io->FontGlobalScale = fontScale;
 
     //DATA
-    static const float vertices[] = {
-        //object vertices     //texCoord
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-    
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-    
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-    
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-    
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-    
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-    };
+    static const float vertices[] = GS_EXAMPLE_VERTEX_DATA;
 
     
     unsigned int v_array;
@@ -169,11 +87,13 @@ int main(void)
     glBindBuffer(GL_ARRAY_BUFFER, v_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(*vertices)*6, (void *) (0) );
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(*vertices)*5, (void *) (0) );
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(*vertices)*6, (void *) (sizeof(float) * 3) );
+    glEnableVertexAttribArray(1);
     
-    vec3 lightColor = {1.0f, 1.0f, 1.0f};
     vec3 toyColor = {1.0f, 0.5f, 0.31f};
+    vec3 lightColor = {1.0f, 1.0f, 1.0f};
     
     GS_Shader_SetUniformVec3f(globalShader, "u_lightColor", lightColor);
     GS_Shader_SetUniformVec3f(globalShader, "u_toyColor", toyColor);
@@ -182,20 +102,9 @@ int main(void)
     
     vec3 lightPos =  {.05f, -0.5f, -7.2f};
     vec3 boxPos =  {-1.05f, -1.3f, -3.26f};
-    
-    vec3 camTarget = {};
-    globalCamera.position[1] = 3.0f;
-    globalCamera.position[2] = 3.0f;
-	globalCamera.front[1] = -0.5f;
-	globalCamera.front[1] = -1.0f;
-	globalCamera.up[1] = 1.0f;
 
     glm_perspective(glm_rad(45.0f), 1280.0f/720.0f, 0.1f, 100.0f, proj);
-    globalCamera.pitch = 7.2f;
-    globalCamera.yaw = 240.0f;
-    globalCamera.position[0] = 1.5f;
-    globalCamera.position[1] = -0.4f;
-    globalCamera.position[2] = 2.5f;
+    
 
     // TODO implement movement
     while (!glfwWindowShouldClose(window))
@@ -214,6 +123,7 @@ int main(void)
         GS_Shader_SetUniformMat4(globalShader, "u_ModelMat", model);
         GS_Shader_SetUniformMat4(globalShader, "u_ViewMat", view);
         GS_Shader_SetUniformMat4(globalShader, "u_ProjMat", proj);
+        GS_Shader_SetUniformVec3f(globalShader, "u_lightPos", lightPos);
         
         glBindVertexArray(v_array);
         glDrawArrays(GL_TRIANGLES, 0, 36);

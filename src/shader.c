@@ -109,9 +109,9 @@ void GS_Shader_UseProgram(Shader *shader)
 {
     if (shader->renderID == 0)
     {
-        GC_LOG("UseShader(Shader *shader):\n"
-               "Shader cannot be used,"
-               "an error occured while create shader.\n\n");
+        // GC_LOG("UseShader(Shader *shader):\n"
+        //        "Shader cannot be used,"
+        //        "an error occured while create shader.\n\n");
         return;
     }
     //GC_LOG("Shader Active.\n\n");

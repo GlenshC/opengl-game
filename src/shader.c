@@ -118,7 +118,6 @@ void GS_Shader_UseProgram(Shader *shader)
     glUseProgram(shader->renderID);
     GS_ActiveProgram = shader->renderID;
     GS_ActiveProgramPointer = shader;
-        
 }
 
 Shader *GS_Shader_GetActiveShader()

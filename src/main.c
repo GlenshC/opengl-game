@@ -48,6 +48,9 @@ GS_Camera globalCamera = {
     7.2f,
     240.0f
 };
+static float CameraYPos = -0.4f;
+static float clearColor[3] = {0.1f, 0.1f, 0.1f};
+static float fontScale = 2.0f;
 
 int main(void)
 {
@@ -61,9 +64,6 @@ int main(void)
         GS_Shader_UseProgram(globalShader);
     
     /*ImGUI stuff*/
-    float clearColor[3] = {0.1f, 0.1f, 0.1f};
-    float fontScale = 2.0f;
-
     igCreateContext(NULL);
 
     ImGuiIO *io = igGetIO();
@@ -112,6 +112,8 @@ int main(void)
         glClearColor(clearColor[0], clearColor[1], clearColor[2], 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         key_movement(window);
+        lightPos[0] = sin(timeCurr) * 10.0f;
+        lightPos[2] = cos(timeCurr) * 10.0f;
 
         // GL Render
         glm_vec3_add(globalCamera.position, globalCamera.front, globalCamera.target);
@@ -123,7 +125,9 @@ int main(void)
         GS_Shader_SetUniformMat4(globalShader, "u_ModelMat", model);
         GS_Shader_SetUniformMat4(globalShader, "u_ViewMat", view);
         GS_Shader_SetUniformMat4(globalShader, "u_ProjMat", proj);
+
         GS_Shader_SetUniformVec3f(globalShader, "u_lightPos", lightPos);
+        GS_Shader_SetUniformVec3f(globalShader, "u_cameraPos", globalCamera.position);
         
         glBindVertexArray(v_array);
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -266,15 +270,18 @@ static void key_movement(GLFWwindow *window)
     timePrev = timeCurr;
 
     float speed = movementSpeed * timeDelta;
+    float Yspeed = 1.0f * timeDelta;
 
     if(glfwGetKey(window, GLFW_KEY_W))
     {
         glm_vec3_muladds(globalCamera.front, speed, globalCamera.position);
+        globalCamera.position[1] = CameraYPos;
     }
     
     if(glfwGetKey(window, GLFW_KEY_S))
     {
         glm_vec3_mulsubs(globalCamera.front, speed, globalCamera.position);
+        globalCamera.position[1] = CameraYPos;
         // MOVE
     }
 
@@ -290,6 +297,16 @@ static void key_movement(GLFWwindow *window)
         glm_vec3_crossn(globalCamera.front, globalCamera.up, res);
         glm_vec3_muladds(res, speed, globalCamera.position);
         // MOVE
+    }
+    if(glfwGetKey(window, GLFW_KEY_SPACE))
+    {
+        CameraYPos += Yspeed;
+        globalCamera.position[1] = CameraYPos;
+    }
+    if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT))
+    {
+        CameraYPos -= Yspeed;
+        globalCamera.position[1] = CameraYPos;
     }
 };
 

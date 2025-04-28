@@ -145,7 +145,11 @@ void GS_Shader_SetUniformInt(Shader *shader, const char *name, int value)
     glUniform1i(location, value);
 }
 
-
+void GS_Shader_SetUniformFloat(Shader *shader, const char *name, float value)
+{
+    int location = glGetUniformLocation(shader->renderID, name);
+    glUniform1f(location, value);
+}
 
 
 /* 

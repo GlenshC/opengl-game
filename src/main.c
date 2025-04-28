@@ -18,14 +18,22 @@
 
 //MY MACRO's PLACED HERE FOR NOW
 
-typedef struct {
+typedef struct GS_Camera{
     vec3 position;
     vec3 front;
+    vec3 direction;
     vec3 target;
     vec3 up;
     float pitch; // vertical
     float yaw; // horizontal
 } GS_Camera;
+
+typedef struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+} GS_Material;
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 static void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height);
@@ -33,24 +41,33 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
 static void key_movement(GLFWwindow *window);
 
 GLFWwindow* window;
+Shader *globalShader;
 float timeDelta;
 float timePrev;
 float timeCurr;
 
 static float movementSpeed = 2.5f;
 float sensitivity = 0.1;
-Shader *globalShader;
+static float CameraYPos = -0.4f;
+static float clearColor[3] = {0.1f, 0.1f, 0.1f};
+static float fontScale = 2.0f;
+
 GS_Camera globalCamera = {
     {1.5f, -0.4f, 2.5f},
     {0.0f, -1.0f, 0.0f},
+    {0.0f, 0.0f, 0.0f},
     {0.0f, 0.0f, 0.0f},
     {0.0f, 1.0f, 0.0f},
     7.2f,
     240.0f
 };
-static float CameraYPos = -0.4f;
-static float clearColor[3] = {0.1f, 0.1f, 0.1f};
-static float fontScale = 2.0f;
+GS_Material globalMaterial = {
+    {1.0f, 0.5f, 0.31f},
+    {1.0f, 0.5f, 0.31f},
+    {0.5f, 0.5f, 0.5f},
+    32.0f
+};
+
 
 int main(void)
 {
@@ -58,7 +75,7 @@ int main(void)
 
     // malloced shader;
     
-    Shader *lightShader = GS_Shader_CreateProgram("./res/shaders/default_vertex.glsl", "./res/shaders/lightCube_fragment.glsl");
+    Shader *lightShader = GS_Shader_CreateProgram("./res/shaders/lightCube_vertex.glsl", "./res/shaders/lightCube_fragment.glsl");
     globalShader = GS_Shader_CreateProgram("./res/shaders/default_vertex.glsl", "./res/shaders/default_fragment.glsl");
     if(globalShader)
         GS_Shader_UseProgram(globalShader);
@@ -128,6 +145,11 @@ int main(void)
 
         GS_Shader_SetUniformVec3f(globalShader, "u_lightPos", lightPos);
         GS_Shader_SetUniformVec3f(globalShader, "u_cameraPos", globalCamera.position);
+
+        GS_Shader_SetUniformVec3f(globalShader, "material.ambient", globalMaterial.ambient);
+        GS_Shader_SetUniformVec3f(globalShader, "material.diffuse", globalMaterial.diffuse);
+        GS_Shader_SetUniformVec3f(globalShader, "material.specular", globalMaterial.specular);
+        GS_Shader_SetUniformFloat(globalShader, "material.shininess", globalMaterial.shininess);
         
         glBindVertexArray(v_array);
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -248,8 +270,12 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
         if (globalCamera.pitch < -89.99f)
             globalCamera.pitch = -89.99f;
     
+        globalCamera.direction[0] = cos(glm_rad(globalCamera.yaw));
         globalCamera.front[0] = cos(glm_rad(globalCamera.yaw)) * cos(glm_rad(globalCamera.pitch));
+        
         globalCamera.front[1] = -sin(glm_rad(globalCamera.pitch));
+
+        globalCamera.direction[2] = sin(glm_rad(globalCamera.yaw));
         globalCamera.front[2] = sin(glm_rad(globalCamera.yaw)) * cos(glm_rad(globalCamera.pitch)); 
     
         // printf("pitch: %.2f\nyaw: %.2f\n",globalCamera.pitch, globalCamera.yaw);
@@ -274,14 +300,12 @@ static void key_movement(GLFWwindow *window)
 
     if(glfwGetKey(window, GLFW_KEY_W))
     {
-        glm_vec3_muladds(globalCamera.front, speed, globalCamera.position);
-        globalCamera.position[1] = CameraYPos;
+        glm_vec3_muladds(globalCamera.direction, speed, globalCamera.position);
     }
     
     if(glfwGetKey(window, GLFW_KEY_S))
     {
-        glm_vec3_mulsubs(globalCamera.front, speed, globalCamera.position);
-        globalCamera.position[1] = CameraYPos;
+        glm_vec3_mulsubs(globalCamera.direction, speed, globalCamera.position);
         // MOVE
     }
 

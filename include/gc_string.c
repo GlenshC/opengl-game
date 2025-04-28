@@ -4,7 +4,7 @@
 #include "gc_string.h"
 #include "gc_logs.h"
 
-GC_String *GC_ReadFile(const char* path)
+GC_String *GC_STR_ReadFile(const char* path)
 {
     GC_String *buffer;    
     FILE *file;
@@ -38,7 +38,7 @@ GC_String *GC_ReadFile(const char* path)
     return buffer;
 }
 
-void *GC_strcpy_internal(char *dest, const char *src, int n, int max, const char* file, int line) 
+void *GC_STR_strcpy_internal(char *dest, const char *src, int n, int max, const char* file, int line) 
 {
     do {
         if (n >= max) {

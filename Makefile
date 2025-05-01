@@ -13,7 +13,7 @@ endif
 
 # Compiler
 CC := gcc
-CFLAGS := -Wall -Wextra -O3
+CFLAGS := -Wall -Wextra
 PROJECT_FLAGS := 
 DEBUG_FLAGS := -DGC_DEBUG
 
@@ -32,6 +32,7 @@ BUILD_DIR := build
 
 # Source files (your code + glad/glfw if using source)
 C_SRC := $(wildcard $(SRC_DIR)/*.c) \
+  		 $(wildcard $(SRC_DIR)/breakout/*.c) \
          $(wildcard $(VENDOR_DIR)/glad/*.c) \
 		 $(wildcard $(INCLUDE_DIR)/*.c)
 

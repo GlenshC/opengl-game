@@ -13,18 +13,16 @@ endif
 
 # Compiler
 CC := gcc
-CXX := g++
-CFLAGS := -Wall -Wextra
-CXXFLAGS := -Wall -Wextra
-PROJECT_FLAGS := -DCIMGUI_USE_OPENGL3 -DCIMGUI_USE_GLFW
-PROJECT_CXXFLAGS := "-DIMGUI_IMPL_API=extern \"C\" "
-# -DIMGUI_IMPL_API='extern "C"'
+CFLAGS := -Wall -Wextra -O3
+PROJECT_FLAGS := 
+DEBUG_FLAGS := -DGC_DEBUG
+
 # Include directories (just the vendor root)
-INCLUDES := -Isrc -Ivendor -Iinclude -Ivendor/cimgui -Ivendor/cimgui/imgui -Ivendor/cimgui/imgui/backends
+INCLUDES := -Isrc -Ivendor -Iinclude
 LIBS := -Lvendor/GLFW -lglfw3
 
-# Linker flags
 LDFLAGS := $(LIBS) $(SYS_LIBS)
+# Linker flags
 
 # Project structure
 SRC_DIR := src
@@ -35,26 +33,17 @@ BUILD_DIR := build
 # Source files (your code + glad/glfw if using source)
 C_SRC := $(wildcard $(SRC_DIR)/*.c) \
          $(wildcard $(VENDOR_DIR)/glad/*.c) \
-		 $(wildcard $(INCLUDE_DIR)/*.c) \
-		$(wildcard $(SRC_DIR)/test/*.c)
-
-CXX_SRC := $(wildcard $(VENDOR_DIR)/cimgui/cimgui*.cpp) \
-           $(wildcard $(VENDOR_DIR)/cimgui/imgui/imgui*.cpp) \
-           $(wildcard $(VENDOR_DIR)/cimgui/imgui/backends/imgui_impl_glfw.cpp) \
-           $(wildcard $(VENDOR_DIR)/cimgui/imgui/backends/imgui_impl_opengl3.cpp)
+		 $(wildcard $(INCLUDE_DIR)/*.c)
 
 # Object files for debug and release
 C_OBJ_DEBUG := $(C_SRC:%.c=$(BUILD_DIR)/debug/%.o)
-CXX_OBJ_DEBUG := $(CXX_SRC:%.cpp=$(BUILD_DIR)/debug/%.o)
 C_OBJ_RELEASE := $(C_SRC:%.c=$(BUILD_DIR)/release/%.o)
-CXX_OBJ_RELEASE := $(CXX_SRC:%.cpp=$(BUILD_DIR)/release/%.o)
 
 # Final binary names for debug and release
 TARGET_DEBUG := $(BUILD_DIR)/debug
 TARGET_RELEASE := $(BUILD_DIR)/release
 
 # Debug flags
-DEBUG_FLAGS := -DGC_DEBUG
 
 # === RULES ===
 
@@ -78,22 +67,10 @@ $(BUILD_DIR)/debug/%.o: %.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ $(PROJECT_FLAGS) $(DEBUG_FLAGS)
 	@touch $@
 
-# Compile C++ files with g++ (debug version)
-$(BUILD_DIR)/debug/%.o: %.cpp
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@ $(PROJECT_FLAGS) $(DEBUG_FLAGS) $(PROJECT_CXXFLAGS) 
-	@touch $@
-
 # Compile C files with gcc (release version)
 $(BUILD_DIR)/release/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@ $(PROJECT_FLAGS)
-	@touch $@
-
-# Compile C++ files with g++ (release version)
-$(BUILD_DIR)/release/%.o: %.cpp
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@ $(PROJECT_FLAGS) $(PROJECT_CXXFLAGS)
 	@touch $@
 
 clean:

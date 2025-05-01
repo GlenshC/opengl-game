@@ -3,9 +3,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#define CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-#include "cimgui/cimgui.h"
-#include "cimgui/cimgui_impl.h"
 #include "cglm/cglm.h"
 
 #include "shader.h"
@@ -61,7 +58,6 @@ static float movementSpeed = 2.5f;
 float sensitivity = 0.1;
 static float CameraYPos = -0.4f;
 static float clearColor[3] = {0.1f, 0.1f, 0.1f};
-static float fontScale = 2.0f;
 
 
 GS_Camera globalCamera = {
@@ -112,17 +108,6 @@ int main(void)
         GS_Shader_UseProgram(globalShader);
 
     GC_LOG("%u %u", lightShader, globalShader);
-    
-    /*ImGUI stuff*/
-    igCreateContext(NULL);
-
-    ImGuiIO *io = igGetIO();
-    igStyleColorsDark(NULL);
-
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 330 core");
-    
-    io->FontGlobalScale = fontScale;
 
     //DATA
     static const float vertices[] = GS_EXAMPLE_VERTEX_DATA;
@@ -220,53 +205,12 @@ int main(void)
 
 
         glBindVertexArray(v_array);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        
-        // UI render
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        igNewFrame();
-        
-        {
-            igBegin("Glensh App", NULL, 0);
-            igColorEdit3("Clear Color",clearColor, 0);
-            igSliderFloat("Font Scale", &fontScale, 1.0f, 4.0f, "%.1f", 0);
-            igSliderFloat("Movement Speed", &movementSpeed, 1.0f, 4.0f, "%.1f", 0);
-            igDragFloat3("Box", boxPos, 0.01f, -100.0f, 10.0f, "%.2f", 0);
-            
-            igDragFloat3("light.ambient", globalLight.ambient, 0.001f, 0.0f, 1.0f, "%.3f", 0);
-            igDragFloat3("light.diffuse", globalLight.diffuse, 0.001f, 0.0f, 1.0f, "%.3f", 0);
-            igDragFloat3("light.specular", globalLight.specular, 0.001f, 0.0f, 1.0f, "%.3f", 0);
-
-            igText("Application average %.3f ms/frame (%.1f FPS)",
-                   1000.0f / igGetIO()->Framerate,
-                   igGetIO()->Framerate);
-            igText("Pitch: %.2f, Yaw: %.2f",
-                   globalCamera.pitch,
-                   globalCamera.yaw);
-            igText("Position: %.2f, %.2f, %.2f",
-                   globalCamera.position[0],
-                   globalCamera.position[1],
-                   globalCamera.position[2]);
-            igText("FOV: %.2f",
-                   globalCamera.fov);
-
-            igEnd();
-        }
-        
-        igRender();
-        io->FontGlobalScale = fontScale;    
-        ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData()); // ImGUI Section END
-         
+        glDrawArrays(GL_TRIANGLES, 0, 36);    
         
         glfwSwapBuffers(window);
         glfwPollEvents();
         
     }
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    igDestroyContext(NULL);
 
     glfwTerminate();
     return 0;

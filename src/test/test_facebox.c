@@ -16,7 +16,7 @@ static mat4
     viewMat  = GLM_MAT4_IDENTITY_INIT, 
     projMat  = GLM_MAT4_IDENTITY_INIT;
 
-static Shader *shader;
+static GS_ShaderHandle shader;
 static unsigned int vertex_array;
 static unsigned int vertex_buffer;
 static GSTexture faceTexture;
@@ -149,6 +149,5 @@ void GS_TEST_FaceBox_GUIUpdate()
 
 void GS_TEST_FaceBox_End()
 {
-    glDeleteProgram(shader->renderID);
-    free(shader);
+    
 }

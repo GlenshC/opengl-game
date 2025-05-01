@@ -8,146 +8,134 @@
 #include "gc_string.h"
 #include "gc_logs.h"
 
-#define freeSources(x, y) free(x); free(y);
-// typedef struct {
-//     unsigned int
-//         vertexID,
-//         fragmentID;
-//     GC_String 
-//         *vSource;
-//         *fSource;
-// } ShaderProgram_Shaders;
+#ifndef GS_SHADER_MAX_PATH
+#define GS_SHADER_MAX_PATH 1024
+#endif
 
-/* 
-GS_Shader {
-    renderID;
-}
-GS_ShaderSourcePath {
-    vertexPath;
-    fragmentPath;
-}
-ShaderPrograms = {
-    GS_Shader : GS_ShaderSourcePath 
-    GS_Shader : GS_ShaderSourcePath 
-    GS_Shader : GS_ShaderSourcePath 
-    GS_Shader : GS_ShaderSourcePath 
-}
+typedef struct {
+    char vertexPath[GS_SHADER_MAX_PATH];
+    char fragmentPath[GS_SHADER_MAX_PATH];
+} GSShaderDetails;
 
-recompiling the shader
-we want a recompile function
-where if we give a in use shader it should preserve it if there is an error
-*/
-    
+typedef unsigned int ProgramIndex; 
+typedef unsigned int GSProgramID;
+typedef unsigned int GSShaderID;
 
-static void GS_CompileProgramShaders(Shader *shader);
-static int GS_CompileShader(GS_ShaderID *renderID, const char *path, GLenum type);
-static GS_ProgramID GS_AttachShader(GS_ShaderID vID, GS_ShaderID fID);
-static int GS_LinkProgram(GS_ProgramID renderID);
-static int GS_Shader_IsActive(GS_ProgramID renderID);
-
+// Prototypes
+static GS_ShaderHandle GS_Shader_CreateHandle(void);
+static void GS_Shader_DeleteHandle(const GS_ShaderHandle handle);
+static void GS_CompileProgramShaders(const GS_ShaderHandle shader);
+static int GS_CompileShader(GSShaderID *renderID, const char *path, const GLenum type);
+static GSProgramID GS_AttachShader(const GSShaderID vID, const GSShaderID fID);
+static int GS_LinkProgram(const GSProgramID renderID);
 static char infoLog[1024];
-static GS_ProgramID GS_ActiveProgram;
-static Shader *GS_ActiveProgramPointer;
 
-/*
-    Returns 1 if the shader is currently in use;
-*/
 
-/*
-    Recompiles shader program. 
-    if recompilation fails it preserve the previous working renderID,
-    else it stores the new id to renderID, and deletes the old one; 
-*/
-void GS_Shader_RecompileProgram(Shader *shader)
+// Handle System
+GSProgramID GS_ACTIVE_PROGRAMS[GS_SHADER_MAX_PROGRAMS]; // active handles
+GSShaderDetails GS_ACTIVE_PROGRAM_DETAILS[GS_SHADER_MAX_PROGRAMS]; // active handles details
+unsigned int GS_ACTIVE_PROGRAMS_SIZE;
+
+ProgramIndex GS_FREE_PROGRAMS[GS_SHADER_MAX_PROGRAMS]; // deleted handles in active handles (index to a element in active handle)
+unsigned int GS_FREE_PROGRAMS_SIZE;
+
+// Handle System Helpers
+#define GET_SHADER_OBJECT(handleID) &GS_ACTIVE_PROGRAM_DETAILS[(handleID) - 1] 
+#define GET_PROGRAM_ID(handleID) GS_ACTIVE_PROGRAMS[(handleID) - 1]
+#define SET_PROGRAM_ID(handleID, id) GS_ACTIVE_PROGRAMS[(handleID) - 1] = id
+#define HANDLE_TO_INDEX(handleID) (handleID) - 1 
+
+// Recompiles Shader Program
+// incase of error Preserves working shader program
+// when successful Replaces old shader program with the new one
+void GS_Shader_RecompileProgram(const GS_ShaderHandle handle)
 {
-    unsigned int renderID = shader->renderID;
+    if (handle == 0)
+    {
+        GC_LOG("Invalid Handle.");
+        return;
+    }
+
+    unsigned int renderID = GET_PROGRAM_ID(handle); // store previously working renderID;
     GC_LOG("Recompiling Shader...\n");
 
-    GS_CompileProgramShaders(shader);
-    if (shader->renderID == 0) {
-    
+    GS_CompileProgramShaders(handle); // recompilation
+    if (GET_PROGRAM_ID(handle) == 0) {
+
         GC_LOG("Failed to recompile shader program.\n\n");
-        shader->renderID = renderID;
-    
+        SET_PROGRAM_ID(handle, renderID);
+
     } else {
+        
         GC_LOG("Successfully recompiled shader program.\n\n");
-        
-        if (GS_Shader_IsActive(renderID)) 
-        {
-            GS_Shader_UseProgram(shader);
-        }
-        
         glDeleteProgram(renderID);
+    
     }
 }
 
-/* 
-    Mallocs a shader program struct
-    returns NULL if memory allocation fails;
-    if Shader->renderID is 0 then a shader compiling/linking error occured
-*/
-Shader *GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath)
+// When Failure, returns 0
+// When Successful, returns a handle to a shader program
+// Successfully creating a program doesn't mean you can use that shader;
+GS_ShaderHandle GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath)
 {
     GC_LOG("Creating Shader...\n");
-    Shader *shader = (Shader *)malloc(sizeof(Shader));
-    if (shader == NULL)
+    GS_ShaderHandle handleID = GS_Shader_CreateHandle();
+    if (handleID == 0)
     {
-        return NULL;
+        return 0;
     }
 
-    GC_strcpy(shader->vertexPath, vertexPath, 0, 512);
-    GC_strcpy(shader->fragmentPath, fragmentPath, 0, 512);
+    GSShaderDetails *shader = GET_SHADER_OBJECT(handleID);
+
+    GC_STR_strcpy(shader->vertexPath, vertexPath, 0, 512);
+    GC_STR_strcpy(shader->fragmentPath, fragmentPath, 0, 512);
     
-    GS_CompileProgramShaders(shader);
+    GS_CompileProgramShaders(handleID);
 
     GC_LOG("\nShader Created Succesfully!\n\n");
     
-    return shader;
+    return handleID;
 }
 
-void GS_Shader_UseProgram(Shader *shader)
+void GS_Shader_UseProgram(const GS_ShaderHandle shader)
 {
-    if (shader->renderID == 0)
+    if (shader == 0)
     {
         // GC_LOG("UseShader(Shader *shader):\n"
         //        "Shader cannot be used,"
         //        "an error occured while create shader.\n\n");
         return;
     }
-    //GC_LOG("Shader Active.\n\n");
-    glUseProgram(shader->renderID);
-    GS_ActiveProgram = shader->renderID;
-    GS_ActiveProgramPointer = shader;
+    glUseProgram(GET_PROGRAM_ID(shader));
 }
 
-Shader *GS_Shader_GetActiveShader()
+void GS_Shader_DeleteProgram(const GS_ShaderHandle handle)
 {
-    if (GS_ActiveProgramPointer == NULL)
-        return NULL;
-    return GS_ActiveProgramPointer;
+    GS_Shader_DeleteHandle(handle);
 }
 
-void GS_Shader_SetUniformMat4(Shader *shader, const char *name, void * Mat4)
+
+void GS_Shader_SetUniformMat4(const GS_ShaderHandle shader, const char *name, const void * Mat4)
 {
-    int location = glGetUniformLocation(shader->renderID, name);
+    int location = glGetUniformLocation(GET_PROGRAM_ID(shader), name);
     glUniformMatrix4fv(location, 1, GL_FALSE, Mat4);
 }
 
-void GS_Shader_SetUniformVec3f(Shader *shader, const char *name, void *Vec3)
+void GS_Shader_SetUniformVec3f(const GS_ShaderHandle shader, const char *name, const void *Vec3)
 {
-    int location = glGetUniformLocation(shader->renderID, name);
+    int location = glGetUniformLocation(GET_PROGRAM_ID(shader), name);
     glUniform3fv(location, 1, Vec3);
 }
 
-void GS_Shader_SetUniformInt(Shader *shader, const char *name, int value)
+void GS_Shader_SetUniformInt(const GS_ShaderHandle shader, const char *name, const int value)
 {
-    int location = glGetUniformLocation(shader->renderID, name);
+    int location = glGetUniformLocation(GET_PROGRAM_ID(shader), name);
     glUniform1i(location, value);
 }
 
-void GS_Shader_SetUniformFloat(Shader *shader, const char *name, float value)
+void GS_Shader_SetUniformFloat(const GS_ShaderHandle shader, const char *name, const float value)
 {
-    int location = glGetUniformLocation(shader->renderID, name);
+    int location = glGetUniformLocation(GET_PROGRAM_ID(shader), name);
     glUniform1f(location, value);
 }
 
@@ -156,50 +144,73 @@ void GS_Shader_SetUniformFloat(Shader *shader, const char *name, float value)
     PRIVATE FUNCTIONS
 */
 
-static int GS_Shader_IsActive(GS_ProgramID renderID)
+// When Failure, returns 0
+// When Successful, returns a handle to a shader program object  
+static GS_ShaderHandle GS_Shader_CreateHandle(void)
 {
-    if (renderID == GS_ActiveProgram)
-        return 1;
-    return 0;
+    if (GS_FREE_PROGRAMS_SIZE)
+    {
+        return GS_FREE_PROGRAMS[--GS_FREE_PROGRAMS_SIZE];
+    }
+    
+    if (GS_ACTIVE_PROGRAMS_SIZE >= GS_SHADER_MAX_PROGRAMS)
+    {
+        GC_LOG("Error: Max Handles Achieved. Can't create more Shaders.");
+        return 0;
+    }
+    
+    return ++GS_ACTIVE_PROGRAMS_SIZE;
+    
 }
 
-/*
-Side-effects: shader->renderID is initialized to zero
-*/
-static void GS_CompileProgramShaders(Shader *shader) 
+static void GS_Shader_DeleteHandle(const GS_ShaderHandle handle)
+{
+    if (handle == GS_ACTIVE_PROGRAMS_SIZE)
+    {
+        --GS_ACTIVE_PROGRAMS_SIZE;
+    } else
+    {
+        GS_FREE_PROGRAMS[GS_FREE_PROGRAMS_SIZE++] = HANDLE_TO_INDEX(handle);
+    }
+    SET_PROGRAM_ID(handle, 0);
+}
+
+// When successful, programID is set to a valid program;
+// When an error occurs, programID is set to zero
+static void GS_CompileProgramShaders(const GS_ShaderHandle handle) // make sure handle is not zero
 {
     unsigned int vID, fID;
-    shader->renderID = 0;
+    GSShaderDetails *shader = GET_SHADER_OBJECT(handle);
     
     if (GS_CompileShader(&vID, shader->vertexPath, GL_VERTEX_SHADER))
         return;
-    
     if (GS_CompileShader(&fID, shader->fragmentPath, GL_FRAGMENT_SHADER))
+    {
+        glDeleteShader(vID);
         return;
-        
-    shader->renderID = GS_AttachShader(vID, fID);
+    }
+    
+    SET_PROGRAM_ID(handle, GS_AttachShader(vID, fID)); 
     return;
 }
 
-/*
-Side-effects: Deletes 's after linking;
-*/
-static int GS_CompileShader(GS_ShaderID *renderID, const char *path, GLenum type)
+// When error occurs, it automatically dispose the shader;
+// Returns 1 when an error occurs
+static int GS_CompileShader(GSShaderID *renderID, const char *path, const GLenum type)
 {
     GC_LOG("\nCompiling Shader...\n");
     int logLen, status;
-    GC_String *source;
-    const char *p;
+
     *renderID = glCreateShader(type);
 
-    source = GC_ReadFile(path);
+    GC_String *source = GC_STR_ReadFile(path);
     if (!source)
     {
         glDeleteShader(*renderID);
         return 1;
     }
     
-    p = source->string;
+    const char *p = source->string;
     glShaderSource(*renderID, 1, &p, NULL);
     glCompileShader(*renderID);
     
@@ -218,13 +229,12 @@ static int GS_CompileShader(GS_ShaderID *renderID, const char *path, GLenum type
     return 0;
 }
 
-/*
-Side-effects: Deletes ShaderID's after linking;
-*/
-static GS_ProgramID GS_AttachShader(GS_ShaderID vID, GS_ShaderID fID)
+// When Successful creates a new Shader Program and returns it;
+// Returns 0 when an error occurs
+static GSProgramID GS_AttachShader(const GSShaderID vID, const GSShaderID fID)
 {
     int status;
-    GS_ProgramID renderID = glCreateProgram();
+    GSProgramID renderID = glCreateProgram();
     
     if (renderID == 0)
     {
@@ -248,7 +258,7 @@ static GS_ProgramID GS_AttachShader(GS_ShaderID vID, GS_ShaderID fID)
     return renderID;
 }
 
-static int GS_LinkProgram(GS_ProgramID renderID)
+static int GS_LinkProgram(const GSProgramID renderID)
 {
     int status, logLen;
     GC_LOG("\nLinking Shaders...\n");
@@ -265,5 +275,5 @@ static int GS_LinkProgram(GS_ProgramID renderID)
     }
 
     GC_LOG("Successfully linked shader program!\n");
-    return 0; // error;
+    return 0; // normal;
 }

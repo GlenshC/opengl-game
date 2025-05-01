@@ -42,12 +42,15 @@ void *GC_STR_strcpy_internal(char *dest, const char *src, int n, int max, const 
 {
     do {
         if (n >= max) {
+            *(dest+(n-1)) = 0;
             GC_LOG("%s:%d: BUFFER_OVERFLOW: Surpassed limit %d bytes\n", file, line, max);
             break;
         }
 
         *(dest+(n++)) = *(src++);
     } while (*src);
+
+    *(dest+(n)) = 0;
 }
 
 /* Implement read batch of file (malloc a batch of file)

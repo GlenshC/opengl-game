@@ -71,8 +71,5 @@ GLFWwindow *GS_GLFW_INIT()
         return -1;
     }
 
-    glEnable(GL_DEPTH_TEST);
-    glfwSetFramebufferSizeCallback(window, Window_FramebufferSizeCallback);
-    glfwSetKeyCallback(window, key_callback);
-    glfwSetCursorPosCallback(window, cursor_position_callback);
+
 */

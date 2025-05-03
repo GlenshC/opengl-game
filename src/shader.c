@@ -45,6 +45,7 @@ unsigned int GS_FREE_PROGRAMS_SIZE;
 #define SET_PROGRAM_ID(handleID, id) GS_ACTIVE_PROGRAMS[(handleID) - 1] = id
 #define HANDLE_TO_INDEX(handleID) (handleID) - 1 
 
+
 // Recompiles Shader Program
 // incase of error Preserves working shader program
 // when successful Replaces old shader program with the new one
@@ -78,12 +79,17 @@ void GS_Shader_RecompileProgram(const GS_ShaderHandle handle)
 // Successfully creating a program doesn't mean you can use that shader;
 GS_ShaderHandle GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath)
 {
+    if (vertexPath == NULL || fragmentPath == NULL)
+    {
+        GC_LOG("Creating Shader Failed: PATH is NULL.\n");
+        return 0;
+    }
+
     GC_LOG("Creating Shader...\n");
     GS_ShaderHandle handleID = GS_Shader_CreateHandle();
     if (handleID == 0)
-    {
         return 0;
-    }
+    
 
     GSShaderDetails *shader = GET_SHADER_OBJECT(handleID);
 

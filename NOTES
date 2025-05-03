@@ -1,0 +1,20 @@
+/* 
+Renderer
+Entities [1,2,3,4,...,n];
+
+
+struct Entity {
+    float x, y;
+    float scale;
+    float rotation;
+    unsigned int type;
+}
+
+struct EntityType
+{
+    Texture id;
+    Shader id;
+} 
+
+
+*/

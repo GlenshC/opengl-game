@@ -1,4 +1,8 @@
 /* 
-    TODO Implement - DONE
-    TODO Redesign Texture  
+    02/05/2025 - 00:27 - Redesign Texture Handling 
+    TODO Design Renderer and Entity Handling
+    TODO Implement Renderer
+    
+    TODO Redesign Shader
+    TODO Shader Parsing Automatic Uniform Detection and load it to the shader struct
 */

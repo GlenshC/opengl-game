@@ -19,8 +19,8 @@ static mat4
 static GS_ShaderHandle shader;
 static unsigned int vertex_array;
 static unsigned int vertex_buffer;
-static GSTexture faceTexture;
-static GSTexture boxTexture;
+static GSTextureHandle faceTexture;
+static GSTextureHandle boxTexture;
 static float scales;
 static vec3 rotation;
 static vec3 transVec;

@@ -13,6 +13,7 @@
 #include "gc_logs.h"
 #include "gc_material_const.h"
 #include "gc_constants.h"
+#include "gc_example_data.h"
 #include "main.h"
 
 // #define GS_TEST_FACEBOX
@@ -53,9 +54,8 @@ static void key_movement(GLFWwindow *window);
 
 GLFWwindow* window;
 GS_ShaderHandle globalShader;
-float timeDelta;
-float timePrev;
-float timeCurr;
+
+GS_Time game_time;
 
 static float movementSpeed = 2.5f;
 float sensitivity = 0.1;
@@ -89,19 +89,15 @@ GS_Light globalLight = {
     {1.0f, 1.0f, 1.0f}
 };
 
-/* 
-GS_Material globalMaterial = {
-    (float[3]) {1.0f, 0.5, 0.31f},
-    (float[3]) {1.0f, 0.5, 0.31f},
-    (float[3]) {0.5f, 0.5f, 0.5f},
-    (float) 1.0f
-};
- */
-
-
 int main(void)
 {
-    GS_MAIN_INIT;
+    window = GS_GLFW_INIT();
+    if (window == NULL)
+        return -1;
+    glEnable(GL_DEPTH_TEST);
+    glfwSetFramebufferSizeCallback(window, Window_FramebufferSizeCallback);
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
     glfwSetScrollCallback(window, scroll_callback);
 
     // malloced shader;
@@ -110,8 +106,6 @@ int main(void)
     globalShader = GS_Shader_CreateProgram("./res/shaders/default_vertex.glsl", "./res/shaders/default_fragment.glsl");
     if(globalShader)
         GS_Shader_UseProgram(globalShader);
-
-    GC_LOG("%u %u", lightShader, globalShader);
     
     /*ImGUI stuff*/
     igCreateContext(NULL);
@@ -125,7 +119,7 @@ int main(void)
     io->FontGlobalScale = fontScale;
 
     //DATA
-    static const float vertices[] = GS_EXAMPLE_VERTEX_DATA;
+    static const float vertices[] = GS_EXAMPLE_DATA_CUBE;
 
     
     unsigned int v_array;
@@ -144,23 +138,13 @@ int main(void)
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(*vertices)*8, (void *) (sizeof(float) * 6) );
     glEnableVertexAttribArray(2);
     
-    
-    //GS_Shader_SetUniformVec3f(globalShader, "u_lightColor", lightColor);
-    // GS_Shader_SetUniformVec3f(globalShader, "u_toyColor", toyColor);
-    
     mat4 model = GLM_MAT4_IDENTITY_INIT, proj = GLM_MAT4_IDENTITY_INIT, view = GLM_MAT4_IDENTITY_INIT;
     vec3 boxPos =  {-1.05f, -1.3f, -3.26f};
     
-    
-    vec3 lightColor = {1.0f, 1.0f, 1.0f};
-    vec3 diffuseColor;
-    vec3 ambientColor;
+    GSTextureHandle diffuseMap = GS_GenTexture2D("./res/textures/container2.png", 1);
+    GSTextureHandle specularMap = GS_GenTexture2D("./res/textures/container2_specular.png", 1);
+    GSTextureHandle emissionMap = GS_GenTexture2D("./res/textures/matrix.jpg", 0);
 
-    GSTexture diffuseMap = GS_GenTexture2D("./res/textures/container2.png", GL_RGBA);
-    GSTexture specularMap = GS_GenTexture2D("./res/textures/container2_specular.png", GL_RGBA);
-    GSTexture emissionMap = GS_GenTexture2D("./res/textures/matrix.jpg", GL_RGB);
-
-    // GC_LOG("%u %u\n", lightShader, globalShader);
 
     // TODO implement movement
     while (!glfwWindowShouldClose(window))
@@ -168,15 +152,6 @@ int main(void)
         glClearColor(clearColor[0], clearColor[1], clearColor[2], 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         key_movement(window);
-
-        lightColor[0] = sin(timeCurr * 2.0f);
-        lightColor[1] = sin(timeCurr * 0.7f);
-        lightColor[2] = sin(timeCurr * 1.3f);
-
-        glm_vec3_mul(lightColor, (vec3){0.5f, 0.5f, 0.5f}, diffuseColor);
-        glm_vec3_mul(diffuseColor, (vec3){0.2f, 0.2f, 0.2f}, ambientColor);
-        // globalLight.position[0] = sin(timeCurr) * 10.0f;
-        // globalLight.position[2] = cos(timeCurr) * 10.0f;
 
         // GL Render
         glm_vec3_add(globalCamera.position, globalCamera.front, globalCamera.target);
@@ -218,7 +193,6 @@ int main(void)
         GS_Shader_SetUniformMat4(lightShader, "u_ViewMat", view);
         GS_Shader_SetUniformMat4(lightShader, "u_ProjMat", proj);
 
-
         glBindVertexArray(v_array);
         glDrawArrays(GL_TRIANGLES, 0, 36);
         
@@ -257,7 +231,6 @@ int main(void)
         igRender();
         io->FontGlobalScale = fontScale;    
         ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData()); // ImGUI Section END
-         
         
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -276,7 +249,6 @@ void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height)
 {
     glViewport(0, 0, width, height);    
 }
-
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -320,7 +292,7 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
 {
     static float lastX = 0, lastY = 0;
     float xoffset = (xpos - lastX) * sensitivity, 
-          yoffset = (ypos - lastY) * sensitivity;
+            yoffset = (ypos - lastY) * sensitivity;
     
     lastX = xpos;
     lastY = ypos;
@@ -352,17 +324,15 @@ static void cursor_position_callback(GLFWwindow* window, double xpos, double ypo
 
 }
 
-
 static void key_movement(GLFWwindow *window)
 {
-    
     static vec3 res;
-    timeCurr = glfwGetTime();
-    timeDelta =  timeCurr - timePrev;
-    timePrev = timeCurr;
+    game_time.current = glfwGetTime();
+    game_time.delta =  game_time.current - game_time.previous;
+    game_time.previous = game_time.current;
 
-    float speed = movementSpeed * timeDelta;
-    float Yspeed = 1.0f * timeDelta;
+    float speed = movementSpeed * game_time.delta;
+    float Yspeed = 1.0f * game_time.delta;
 
     if(glfwGetKey(window, GLFW_KEY_W))
     {
@@ -408,5 +378,3 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
     if (globalCamera.fov < 30.0f)
         globalCamera.fov = 30.0f;
 }
-
-

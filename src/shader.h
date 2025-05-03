@@ -2,25 +2,23 @@
 #define SHADER_H
 
 #define GS_SHADER_MAX_PATH 512
+#define GS_SHADER_MAX_PROGRAMS 256
 /*
     Shader.renderID
      0 - an error occured
 */ 
-typedef struct {
-    unsigned int renderID;
-    char vertexPath[GS_SHADER_MAX_PATH];
-    char fragmentPath[GS_SHADER_MAX_PATH];
-} Shader;
 
-typedef unsigned int GS_ProgramID;
-typedef unsigned int GS_ShaderID;
+typedef unsigned int GS_ShaderHandle;
 
-// returns NULL, if compilation error, else check status
-Shader *GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath);
-Shader *GS_Shader_GetActiveShader();
-void GS_Shader_RecompileProgram(Shader *shader);
-void GS_Shader_UseProgram(Shader *shader);
-void GS_Shader_SetUniformMat4(Shader *shader, const char *name, void * mat4);
-void GS_Shader_SetInt(Shader *shader, const char *name, int value);
+GS_ShaderHandle GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath);
+void GS_Shader_RecompileProgram(const GS_ShaderHandle shader);
+void GS_Shader_UseProgram(const GS_ShaderHandle shader);
+void GS_Shader_DeleteProgram(const GS_ShaderHandle handle);
+
+void GS_Shader_SetUniformMat4(const GS_ShaderHandle shader, const char *name, const void * Mat4);
+void GS_Shader_SetUniformVec3f(const GS_ShaderHandle shader, const char *name, const void *Vec3);
+void GS_Shader_SetUniformInt(const GS_ShaderHandle shader, const char *name, const int value);
+void GS_Shader_SetUniformFloat(const GS_ShaderHandle shader, const char *name, const float value);
+
 
 #endif

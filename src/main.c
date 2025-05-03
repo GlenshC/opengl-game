@@ -11,237 +11,219 @@
 #include "shader.h"
 #include "texture.h"
 #include "gc_logs.h"
+#include "gc_material_const.h"
+#include "gc_constants.h"
+#include "gc_example_data.h"
+#include "main.h"
+
+// #define GS_TEST_FACEBOX
+// #include "test/gs_test.h"
 
 //MY MACRO's PLACED HERE FOR NOW
-#ifndef offsetof
-#   define offsetof(TYPE, ELEMENT) ((size_t) &(((TYPE *)0)->ELEMENT)) 
-#   ifdef __has_builtin
-#       if __has_builtin(__builtin_offsetof)
-#           undef offsetof
-#           define offsetof(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
-#       endif
-#   endif
-#endif
 
-#define igGetIO igGetIO_Nil
+typedef struct GS_Camera{
+    vec3 position;
+    vec3 front;
+    vec3 direction;
+    vec3 target;
+    vec3 up;
+    float fov;
+    float pitch; // vertical
+    float yaw; // horizontal
+} GS_Camera;
+
+typedef struct GS_Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+} GS_Material;
+
+typedef struct GS_Light {
+    vec3 position;
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+} GS_Light;
+
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
+static void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height);
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
+static void scroll_callback(GLFWwindow* window, double xpos, double ypos);
+static void key_movement(GLFWwindow *window);
 
 GLFWwindow* window;
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height);
+GS_ShaderHandle globalShader;
 
-typedef struct {
-    float vData[3];
-    float pos[3];
-    float color[3];
-} VertexData;
+GS_Time game_time;
+
+static float movementSpeed = 2.5f;
+float sensitivity = 0.1;
+static float CameraYPos = -0.4f;
+static float clearColor[3] = {0.1f, 0.1f, 0.1f};
+static float fontScale = 2.0f;
 
 
-Shader *globalShader;
+GS_Camera globalCamera = {
+    {-4.0f, -0.4f, -9.0f},  // position
+    {0.0f, -1.0f, 0.0f},    // front
+    {0.0f, 0.0f, 0.0f},     // direction (facing)
+    {0.0f, 0.0f, 0.0f},     // target (looking at)
+    {0.0f, 1.0f, 0.0f},     // up
+    70.0f,                  // fov
+    0.0f,                   // pitch
+    0.0f                    // yaw
+};
+
+GS_Material globalMaterial = {
+    (float[3]) {1.0f, 0.5, 0.31f}, 
+    (float[3]) {1.0f, 0.5, 0.31f},
+    (float[3]) {0.5f, 0.5f, 0.5f},
+    (float) 2.0f
+};
+
+GS_Light globalLight = {
+    {.05f, -0.5f, -7.2f},
+    {0.2f, 0.2f, 0.2f},
+    {0.5f, 0.5f, 0.5f},
+    {1.0f, 1.0f, 1.0f}
+};
+
 int main(void)
 {
-    if (!glfwInit()) {
-        GC_LOG("Failed to initialize GLFW.");
+    window = GS_GLFW_INIT();
+    if (window == NULL)
         return -1;
-    }
-    
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    
-    window = glfwCreateWindow(1280, 720, "Hello World", NULL, NULL);
-    if (!window)
-    {
-        GC_LOG("Failed to create window.");
-        glfwTerminate();
-        return -1;
-    }
-
-    glfwMakeContextCurrent(window);
-    
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-        GC_LOG("Failed to initialized GLAD.");
-        glfwTerminate();
-        return -1;
-    }
-
     glEnable(GL_DEPTH_TEST);
     glfwSetFramebufferSizeCallback(window, Window_FramebufferSizeCallback);
     glfwSetKeyCallback(window, key_callback);
-    
-
-//  v-sync
-//  glfwSwapInterval(1);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     // malloced shader;
-    globalShader = GS_Shader_CreateProgram("./res/shaders/vertex.glsl", "./res/shaders/fragment.glsl");
+    
+    GS_ShaderHandle lightShader = GS_Shader_CreateProgram("./res/shaders/lightCube_vertex.glsl", "./res/shaders/lightCube_fragment.glsl");
+    globalShader = GS_Shader_CreateProgram("./res/shaders/default_vertex.glsl", "./res/shaders/default_fragment.glsl");
     if(globalShader)
         GS_Shader_UseProgram(globalShader);
     
-     const float vertices[] = {
-        //object vertices     //texCoord
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-    };
-
-    vec3 cubePositions[] = {
-        { 0.0f,  0.0f,  0.0f},
-        { 2.0f,  5.0f, -15.0f},
-        {-1.5f, -2.2f, -2.5f},
-        {-3.8f, -2.0f, -12.3f},
-        { 2.4f, -0.4f, -3.5f},
-        {-1.7f,  3.0f, -7.5f},
-        { 1.3f, -2.0f, -2.5f},
-        { 1.5f,  2.0f, -2.5f},
-        { 1.5f,  0.2f, -1.5f},
-        {-1.3f,  1.0f, -1.5f}
-    };
-    
-    unsigned int vertex_array;
-    glGenVertexArrays(1, &vertex_array);
-    glBindVertexArray(vertex_array);
-    
-    unsigned int vertex_buffer;
-    glGenBuffers(1, &vertex_buffer);
-    glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 
-                          sizeof(*vertices) * 5, (void *) 0);
-    
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE,
-                          sizeof(*vertices) * 5, (void *) (sizeof(float)*3));
-    
-/*
-    unsigned int index_buffer;
-    glGenBuffers(1, &index_buffer);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);    
-*/
-
-    mat4 orthoProj = GLM_MAT4_IDENTITY_INIT;
-    glm_ortho(0.0f, 1280.0f, 720.0f, 0.0f, -1.0f, 2.0f, orthoProj);
-
-    GS_Shader_UseProgram(globalShader);
-    GS_Shader_SetUniformMat4(globalShader, "u_Proj", orthoProj);
-
-    // Texture stuff
-
-    GSTexture faceTexture = GS_GenTexture2D("./res/textures/awesomeface.png", GL_RGBA);
-    GSTexture boxTexture = GS_GenTexture2D("./res/textures/container.jpg", GL_RGB);
-
-    // Transform stuff
-
-    mat4 modelMat = GLM_MAT4_IDENTITY_INIT, 
-         viewMat  = GLM_MAT4_IDENTITY_INIT, 
-         projMat  = GLM_MAT4_IDENTITY_INIT;
-
-    float scales = 1.0f;
-    vec3 rotation = {};
-    vec3 transVec = {};
-
-    glm_perspective(glm_rad(90.0f), 1280.0f/720.0f, 0.1f, 100.0f, projMat);
-    
-    
     /*ImGUI stuff*/
     igCreateContext(NULL);
+
     ImGuiIO *io = igGetIO();
-    
     igStyleColorsDark(NULL);
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
     
-    float clearColor[3] = {0.2f, 0.3f, 0.3f};
-    float fontScale = 2.0f;
-    io->FontGlobalScale = fontScale;         
+    io->FontGlobalScale = fontScale;
+
+    //DATA
+    static const float vertices[] = GS_EXAMPLE_DATA_CUBE;
 
     
+    unsigned int v_array;
+    glGenVertexArrays(1, &v_array);
+    glBindVertexArray(v_array);
+    
+    unsigned int v_buffer;
+    glGenBuffers(1, &v_buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, v_buffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(*vertices)*8, (void *) (0) );
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(*vertices)*8, (void *) (sizeof(float) * 3) );
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(*vertices)*8, (void *) (sizeof(float) * 6) );
+    glEnableVertexAttribArray(2);
+    
+    mat4 model = GLM_MAT4_IDENTITY_INIT, proj = GLM_MAT4_IDENTITY_INIT, view = GLM_MAT4_IDENTITY_INIT;
+    vec3 boxPos =  {-1.05f, -1.3f, -3.26f};
+    
+    GSTextureHandle diffuseMap = GS_GenTexture2D("./res/textures/container2.png", 1);
+    GSTextureHandle specularMap = GS_GenTexture2D("./res/textures/container2_specular.png", 1);
+    GSTextureHandle emissionMap = GS_GenTexture2D("./res/textures/matrix.jpg", 0);
+
+
+    // TODO implement movement
     while (!glfwWindowShouldClose(window))
     {
         glClearColor(clearColor[0], clearColor[1], clearColor[2], 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        key_movement(window);
 
         // GL Render
-        GS_Shader_SetInt(globalShader, "texture0", 0);
-        GS_Shader_SetInt(globalShader, "texture1", 1);
-        GS_ActiveTexture(0, GL_TEXTURE_2D, boxTexture);    
-        GS_ActiveTexture(1, GL_TEXTURE_2D, faceTexture);
+        glm_vec3_add(globalCamera.position, globalCamera.front, globalCamera.target);
+        glm_lookat(globalCamera.position, globalCamera.target, globalCamera.up, view);
+        glm_perspective(glm_rad(globalCamera.fov), 1280.0f/720.0f, 0.1f, 100.0f, proj);
 
-        glm_mat4_identity(modelMat);
-        glm_translate(modelMat, transVec);
-        glm_rotate(modelMat, glm_rad(rotation[0]), (vec3){1.0f, 0.0f, 0.0f});
-        glm_rotate(modelMat, glm_rad(rotation[1]), (vec3){0.0f, 1.0f, 0.0f});
-        glm_rotate(modelMat, glm_rad(rotation[2]), (vec3){0.0f, 0.0f, 1.0f});
-        glm_scale(modelMat, (vec3){scales, scales, scales});
-    
-        GS_Shader_SetUniformMat4(globalShader, "u_ModelMat", modelMat);
-        GS_Shader_SetUniformMat4(globalShader, "u_ProjMat", projMat);
-        // GS_Shader_SetUniformMat4(globalShader, "u_ViewMat", viewMat);
-            
-        //glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, (void *)0); 
-        glBindVertexArray(vertex_array);
+        GS_Shader_UseProgram(globalShader);
+        glm_mat4_identity(model);
+        glm_translate(model, boxPos);
+
+        GS_ActiveTexture(0, GL_TEXTURE_2D, diffuseMap);
+        GS_ActiveTexture(1, GL_TEXTURE_2D, specularMap);
+        GS_ActiveTexture(2, GL_TEXTURE_2D, emissionMap);
+
+        GS_Shader_SetUniformMat4(globalShader, "u_ModelMat", model);
+        GS_Shader_SetUniformMat4(globalShader, "u_ViewMat", view);
+        GS_Shader_SetUniformMat4(globalShader, "u_ProjMat", proj);
+        GS_Shader_SetUniformVec3f(globalShader, "u_cameraPos", globalCamera.position);
+        
+        // GS_Shader_SetUniformVec3f(globalShader, "material.ambient", globalMaterial.ambient);
+        GS_Shader_SetUniformInt(globalShader, "material.diffuse", 0);
+        GS_Shader_SetUniformInt(globalShader, "material.specular", 1);
+        GS_Shader_SetUniformInt(globalShader, "material.emission", 2);
+        GS_Shader_SetUniformFloat(globalShader, "material.shininess", 64.0f);
+
+        GS_Shader_SetUniformVec3f(globalShader, "u_lightPos", globalLight.position);
+        GS_Shader_SetUniformVec3f(globalShader, "light.ambient", globalLight.ambient);
+        GS_Shader_SetUniformVec3f(globalShader, "light.diffuse", globalLight.diffuse);
+        GS_Shader_SetUniformVec3f(globalShader, "light.specular", globalLight.specular);
+        
+        glBindVertexArray(v_array);
         glDrawArrays(GL_TRIANGLES, 0, 36);
+        
+        GS_Shader_UseProgram(lightShader);
+        glm_mat4_identity(model);
+        glm_translate(model, globalLight.position);
 
+        GS_Shader_SetUniformMat4(lightShader, "u_ModelMat", model);
+        GS_Shader_SetUniformMat4(lightShader, "u_ViewMat", view);
+        GS_Shader_SetUniformMat4(lightShader, "u_ProjMat", proj);
+
+        glBindVertexArray(v_array);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        
         // UI render
-        // ImGUI Section START
-
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         igNewFrame();
-
+        
         {
             igBegin("Glensh App", NULL, 0);
             igColorEdit3("Clear Color",clearColor, 0);
             igSliderFloat("Font Scale", &fontScale, 1.0f, 4.0f, "%.1f", 0);
-            igDragFloat("Scale", &scales, 0.01f, -10.0f, 10.0f, "%.3f", 0);
-            igDragFloat3("Rotation", rotation, 0.01f, -360.0f, 360.0f, "%.2f", 0);
-            igDragFloat3("Translate", transVec, 0.1f, -1000.0f, 10.0f, "%.3f", 0);
-            //igDragFloat2("Blue Box", vertices[0].pos, 1.0f, 0.0f, 1080.0f, "%.1f", 0);
-            //igDragFloat2("Green Box", vertices[4].pos, 1.0f, 0.0f, 1080.0f, "%.1f", 0); 
+            igSliderFloat("Movement Speed", &movementSpeed, 1.0f, 4.0f, "%.1f", 0);
+            igDragFloat3("Box", boxPos, 0.01f, -100.0f, 10.0f, "%.2f", 0);
+            
+            igDragFloat3("light.ambient", globalLight.ambient, 0.001f, 0.0f, 1.0f, "%.3f", 0);
+            igDragFloat3("light.diffuse", globalLight.diffuse, 0.001f, 0.0f, 1.0f, "%.3f", 0);
+            igDragFloat3("light.specular", globalLight.specular, 0.001f, 0.0f, 1.0f, "%.3f", 0);
+
             igText("Application average %.3f ms/frame (%.1f FPS)",
                    1000.0f / igGetIO()->Framerate,
                    igGetIO()->Framerate);
+            igText("Pitch: %.2f, Yaw: %.2f",
+                   globalCamera.pitch,
+                   globalCamera.yaw);
+            igText("Position: %.2f, %.2f, %.2f",
+                   globalCamera.position[0],
+                   globalCamera.position[1],
+                   globalCamera.position[2]);
+            igText("FOV: %.2f",
+                   globalCamera.fov);
 
             igEnd();
         }
@@ -249,32 +231,16 @@ int main(void)
         igRender();
         io->FontGlobalScale = fontScale;    
         ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData()); // ImGUI Section END
-/*
-        for (int i = 0; i < 2; i++)
-        {
-            int x = vertices[i*4].pos[0],
-                y = vertices[i*4].pos[1];
-            if (y > 520.0f)
-            {
-                y = 520.0f;
-                vertices[i*4].pos[1] = y;
-            }   
-            for (int j = 1; j < 4; j++)
-            {
-                vertices[i*4 + j].pos[0] = x;
-                vertices[i*4 + j].pos[1] = y;
-                
-            }
-        }
         
-        glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);        
-*/                
         glfwSwapBuffers(window);
         glfwPollEvents();
         
     }
 
-    free(globalShader);
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    igDestroyContext(NULL);
+
     glfwTerminate();
     return 0;
 }
@@ -286,6 +252,129 @@ void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height)
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-    if (key == GLFW_KEY_R && action == GLFW_PRESS)
-        GS_Shader_RecompileProgram(GS_Shader_GetActiveShader());
+    // 0pos = enable/disabled cursor
+    static int state = 0;
+    
+
+    switch(action)
+    {
+        case GLFW_PRESS:
+        {
+            switch(key)
+            {
+                case GLFW_KEY_R:
+                {
+                    GS_Shader_RecompileProgram(globalShader);
+                    break;
+                }
+                case GLFW_KEY_ESCAPE:
+                {
+                    // default is normal
+                    if (state & 1)
+                        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                    else
+                        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                    state ^= 1;
+
+                    break;
+                }
+            }
+            break;
+        }
+
+        default:
+            break;
+    }
+    
+}
+
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    static float lastX = 0, lastY = 0;
+    float xoffset = (xpos - lastX) * sensitivity, 
+            yoffset = (ypos - lastY) * sensitivity;
+    
+    lastX = xpos;
+    lastY = ypos;
+
+    if (glfwGetInputMode(window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED)
+    {
+    
+        globalCamera.yaw += xoffset;  
+        globalCamera.pitch += yoffset;  
+    
+        if (globalCamera.pitch > 89.99f)
+            globalCamera.pitch = 89.99f;
+        if (globalCamera.pitch < -89.99f)
+            globalCamera.pitch = -89.99f;
+    
+        globalCamera.direction[0] = cos(glm_rad(globalCamera.yaw));
+        globalCamera.front[0] = cos(glm_rad(globalCamera.yaw)) * cos(glm_rad(globalCamera.pitch));
+        
+        globalCamera.front[1] = -sin(glm_rad(globalCamera.pitch));
+
+        globalCamera.direction[2] = sin(glm_rad(globalCamera.yaw));
+        globalCamera.front[2] = sin(glm_rad(globalCamera.yaw)) * cos(glm_rad(globalCamera.pitch)); 
+    
+        // printf("pitch: %.2f\nyaw: %.2f\n",globalCamera.pitch, globalCamera.yaw);
+        glm_normalize(globalCamera.front);
+
+    }
+
+
+}
+
+static void key_movement(GLFWwindow *window)
+{
+    static vec3 res;
+    game_time.current = glfwGetTime();
+    game_time.delta =  game_time.current - game_time.previous;
+    game_time.previous = game_time.current;
+
+    float speed = movementSpeed * game_time.delta;
+    float Yspeed = 1.0f * game_time.delta;
+
+    if(glfwGetKey(window, GLFW_KEY_W))
+    {
+        glm_vec3_muladds(globalCamera.direction, speed, globalCamera.position);
+    }
+    
+    if(glfwGetKey(window, GLFW_KEY_S))
+    {
+        glm_vec3_mulsubs(globalCamera.direction, speed, globalCamera.position);
+        // MOVE
+    }
+
+    if(glfwGetKey(window, GLFW_KEY_A))
+    {
+        // MOVE
+        glm_vec3_crossn(globalCamera.front, globalCamera.up, res);
+        glm_vec3_mulsubs(res, speed, globalCamera.position);
+    }
+    
+    if(glfwGetKey(window, GLFW_KEY_D))
+    {
+        glm_vec3_crossn(globalCamera.front, globalCamera.up, res);
+        glm_vec3_muladds(res, speed, globalCamera.position);
+        // MOVE
+    }
+    if(glfwGetKey(window, GLFW_KEY_SPACE))
+    {
+        CameraYPos += Yspeed;
+        globalCamera.position[1] = CameraYPos;
+    }
+    if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT))
+    {
+        CameraYPos -= Yspeed;
+        globalCamera.position[1] = CameraYPos;
+    }
+};
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    globalCamera.fov += yoffset * 2.5f;
+    if (globalCamera.fov > 120.0f)
+        globalCamera.fov = 120.0f;
+    if (globalCamera.fov < 30.0f)
+        globalCamera.fov = 30.0f;
 }

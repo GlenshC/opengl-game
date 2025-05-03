@@ -4,13 +4,70 @@
 #include "stb_image/stb_image.h"
 #include "gc_logs.h"
 
-typedef unsigned char BYTE;
+#ifndef MAX_TEXTURES
+#define MAX_TEXTURES 1024
+#endif
 
-GSTexture GS_GenTexture2D(char const *path, GLenum colorFormat)
+typedef unsigned char BYTE;
+typedef unsigned int GSTextureID;
+typedef struct {
+    GSTextureID textures[MAX_TEXTURES];
+    size_t size;
+} TEXTURES;
+
+static TEXTURES TEXTURE_HANDLES;
+
+#define POP_TEXTURE_HANDLE --TEXTURE_HANDLES.size
+#define PUSH_TEXTURE_HANDLE ++TEXTURE_HANDLES.size
+#define GET_TEXTURE_ID(handle) TEXTURE_HANDLES.textures[(handle) - 1]
+#define SET_TEXTURE_ID(handle, id) TEXTURE_HANDLES.textures[(handle) - 1] = id
+#define HANDLE_TO_INDEX(handle) ((handle) - 1)
+
+static GSTextureHandle 
+TextureHandle_create()
 {
-    GSTexture id;
+    if (TEXTURE_HANDLES.size >= MAX_TEXTURES)
+        return 0;
+
+    return PUSH_TEXTURE_HANDLE;
+}
+
+static GSTextureID 
+TextureHandle_getID(GSTextureHandle handle)
+{
+    if (handle == 0)
+        return 0;
+
+    return GET_TEXTURE_ID(handle);
+}
+
+static void 
+TextureHandle_setID(GSTextureHandle handle, GSTextureID id)
+{
+    if (handle == 0)
+        return;
+    
+    SET_TEXTURE_ID(handle, id);
+}
+
+static void 
+TextureHandle_delete(GSTextureHandle handle)
+{
+    if (handle == 0)
+        return;
+    
+    SET_TEXTURE_ID(handle, TEXTURE_HANDLES.textures[POP_TEXTURE_HANDLE]);
+}
+
+
+GSTextureHandle 
+GS_GenTexture2D(char const *path, int alpha)
+{
+    GSTextureHandle handle = TextureHandle_create();
+    GSTextureID id;
     int x, y, comp;
-    stbi_set_flip_vertically_on_load(1);
+    GLenum colorFormat = GL_RGB;
+    // stbi_set_flip_vertically_on_load(1);
     BYTE *textureData = stbi_load(path, &x, &y, &comp, 0); 
     if (!textureData)
     {
@@ -18,9 +75,13 @@ GSTexture GS_GenTexture2D(char const *path, GLenum colorFormat)
         return 0;
     }
 
+    if (alpha) {
+        colorFormat = GL_RGBA;
+    }
+
     glGenTextures(1, &id);
     glBindTexture(GL_TEXTURE_2D, id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, x, y, 0, colorFormat, GL_UNSIGNED_BYTE, textureData);
+    glTexImage2D(GL_TEXTURE_2D, 0, colorFormat, x, y, 0, colorFormat, GL_UNSIGNED_BYTE, textureData);
     glGenerateMipmap(GL_TEXTURE_2D);
 
     stbi_image_free(textureData);
@@ -32,21 +93,26 @@ GSTexture GS_GenTexture2D(char const *path, GLenum colorFormat)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 #endif
 
-    return id;
+    TextureHandle_setID(handle, id);
+    return handle;
 }
 
-void GS_ActiveTexture(unsigned int index, GLenum texture_type, GSTexture texture) {
+void 
+GS_ActiveTexture(unsigned int index, GLenum texture_type, GSTextureHandle handle) 
+{
     glActiveTexture(GL_TEXTURE0 + index);
-    glBindTexture(texture_type, texture);
+    glBindTexture(texture_type, TextureHandle_getID(handle));
 }
 
-void GS_SetTextureWrap(GLenum target, GLenum type)
+void 
+GS_SetTextureWrap(GLenum target, GLenum type)
 {
     glTexParameteri(target, GL_TEXTURE_WRAP_S, type);
     glTexParameteri(target, GL_TEXTURE_WRAP_T, type);
 }
 
-void GS_SetTextureFilter(GLenum target, GLenum min, GLenum max)
+void 
+GS_SetTextureFilter(GLenum target, GLenum min, GLenum max)
 {
     glTexParameteri(target, GL_TEXTURE_MIN_FILTER, min);
     glTexParameteri(target, GL_TEXTURE_MAG_FILTER, max);

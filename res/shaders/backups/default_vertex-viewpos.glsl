@@ -16,9 +16,10 @@ uniform mat4 u_ProjMat;
 
 void main()
 {
-    FragPos = vec3(u_ModelMat * vec4(aModelPos, 1.0));
-    Normal = mat3(transpose(inverse(u_ModelMat))) * aNormal;  
+    FragPos = vec3(u_ViewMat * u_ModelMat * vec4(aModelPos, 1.0));
+    Normal =  mat3(transpose(inverse(u_ViewMat * u_ModelMat))) * aNormal;
     TexCoords = aTexCoord;
     
-    gl_Position = u_ProjMat * u_ViewMat * vec4(FragPos, 1.0);
+    // LightPos = vec3(u_ViewMat * vec4(u_lightPos, 1.0));
+    gl_Position = u_ProjMat * vec4(FragPos, 1.0);
 }

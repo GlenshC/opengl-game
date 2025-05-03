@@ -40,9 +40,10 @@ ProgramIndex GS_FREE_PROGRAMS[GS_SHADER_MAX_PROGRAMS]; // deleted handles in act
 unsigned int GS_FREE_PROGRAMS_SIZE;
 
 // Handle System Helpers
-#define GET_SHADER_OBJECT(handleID) &GS_ACTIVE_PROGRAM_DETAILS[(handleID) - 1] 
+#define GET_SHADER_OBJECT(handleID) &GS_ACTIVE_PROGRAM_DETAILS[(handleID) - 1]
 #define GET_PROGRAM_ID(handleID) GS_ACTIVE_PROGRAMS[(handleID) - 1]
 #define SET_PROGRAM_ID(handleID, id) GS_ACTIVE_PROGRAMS[(handleID) - 1] = id
+#define GET_SIZE() GS_ACTIVE_PROGRAMS_SIZE
 #define HANDLE_TO_INDEX(handleID) (handleID) - 1 
 
 
@@ -72,6 +73,17 @@ void GS_Shader_RecompileProgram(const GS_ShaderHandle handle)
         glDeleteProgram(renderID);
     
     }
+}
+
+
+void GS_Shader_RecompileAll(void)
+{
+    GC_LOG("\n\nRecompiling ALL Shaders.\n");
+    for (int i =0; i < GET_SIZE(); i++)
+    {
+        GS_Shader_RecompileProgram(i+1);
+    }
+    GC_LOG("Recompiled All Shaders.\n");
 }
 
 // When Failure, returns 0
@@ -171,12 +183,12 @@ static GS_ShaderHandle GS_Shader_CreateHandle(void)
 
 static void GS_Shader_DeleteHandle(const GS_ShaderHandle handle)
 {
-    if (handle == GS_ACTIVE_PROGRAMS_SIZE)
+    if (handle == GS_ACTIVE_PROGRAMS_SIZE) // remove directly if handle is on the end of the array
     {
         --GS_ACTIVE_PROGRAMS_SIZE;
     } else
     {
-        GS_FREE_PROGRAMS[GS_FREE_PROGRAMS_SIZE++] = HANDLE_TO_INDEX(handle);
+        GS_FREE_PROGRAMS[GS_FREE_PROGRAMS_SIZE++] = HANDLE_TO_INDEX(handle); // marks the handle as free to take
     }
     SET_PROGRAM_ID(handle, 0);
 }

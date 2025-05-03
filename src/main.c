@@ -41,9 +41,13 @@ typedef struct GS_Material {
 
 typedef struct GS_Light {
     vec3 position;
+    vec3 direction;
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+    float constant;
+    float linear;
+    float quadratic;
 } GS_Light;
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
@@ -83,11 +87,14 @@ GS_Material globalMaterial = {
 };
 
 GS_Light globalLight = {
-    {.05f, -0.5f, -7.2f},
+    {1.2f, 1.0f, 2.0f},
+    {-0.2f, -1.0f, -0.3f},
     {0.2f, 0.2f, 0.2f},
     {0.5f, 0.5f, 0.5f},
-    {1.0f, 1.0f, 1.0f}
+    {1.0f, 1.0f, 1.0f},
+    1.0f, 0.09f, 0.032f
 };
+
 
 int main(void)
 {
@@ -120,6 +127,7 @@ int main(void)
 
     //DATA
     static const float vertices[] = GS_EXAMPLE_DATA_CUBE;
+    static const float cubePos[] = GS_DATA_CUBE_POSITIONS;
 
     
     unsigned int v_array;
@@ -145,7 +153,7 @@ int main(void)
     GSTextureHandle specularMap = GS_GenTexture2D("./res/textures/container2_specular.png", 1);
     GSTextureHandle emissionMap = GS_GenTexture2D("./res/textures/matrix.jpg", 0);
 
-
+    
     // TODO implement movement
     while (!glfwWindowShouldClose(window))
     {
@@ -164,9 +172,8 @@ int main(void)
 
         GS_ActiveTexture(0, GL_TEXTURE_2D, diffuseMap);
         GS_ActiveTexture(1, GL_TEXTURE_2D, specularMap);
-        GS_ActiveTexture(2, GL_TEXTURE_2D, emissionMap);
+        //GS_ActiveTexture(2, GL_TEXTURE_2D, emissionMap);
 
-        GS_Shader_SetUniformMat4(globalShader, "u_ModelMat", model);
         GS_Shader_SetUniformMat4(globalShader, "u_ViewMat", view);
         GS_Shader_SetUniformMat4(globalShader, "u_ProjMat", proj);
         GS_Shader_SetUniformVec3f(globalShader, "u_cameraPos", globalCamera.position);
@@ -174,27 +181,45 @@ int main(void)
         // GS_Shader_SetUniformVec3f(globalShader, "material.ambient", globalMaterial.ambient);
         GS_Shader_SetUniformInt(globalShader, "material.diffuse", 0);
         GS_Shader_SetUniformInt(globalShader, "material.specular", 1);
-        GS_Shader_SetUniformInt(globalShader, "material.emission", 2);
+        //GS_Shader_SetUniformInt(globalShader, "material.emission", 2);
         GS_Shader_SetUniformFloat(globalShader, "material.shininess", 64.0f);
+        
+        // GS_Shader_SetUniformVec3f(globalShader, "light.position", globalLight.position);
+        // GS_Shader_SetUniformVec3f(globalShader, "light.direction", globalLight.direction);
+        GS_Shader_SetUniformVec3f(globalShader, "light.position", globalCamera.position);
+        GS_Shader_SetUniformVec3f(globalShader, "light.direction", globalCamera.front);
+        GS_Shader_SetUniformFloat(globalShader, "light.cutoff", cos(glm_rad(30.5f)));
 
-        GS_Shader_SetUniformVec3f(globalShader, "u_lightPos", globalLight.position);
+
         GS_Shader_SetUniformVec3f(globalShader, "light.ambient", globalLight.ambient);
         GS_Shader_SetUniformVec3f(globalShader, "light.diffuse", globalLight.diffuse);
         GS_Shader_SetUniformVec3f(globalShader, "light.specular", globalLight.specular);
+        GS_Shader_SetUniformFloat(globalShader, "light.constant", globalLight.constant);
+        GS_Shader_SetUniformFloat(globalShader, "light.linear", globalLight.linear);
+        GS_Shader_SetUniformFloat(globalShader, "light.quadratic", globalLight.quadratic);
         
         glBindVertexArray(v_array);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        for (int i =0; i < 10; i++)
+        {
+            glm_mat4_identity(model);
+            glm_translate(model, &cubePos[i*3]);
+            float angle = 20.0f * i;
+            glm_rotate(model, glm_rad(angle), (vec3) {1.0f, 0.3f, 0.5f});
+            GS_Shader_SetUniformMat4(globalShader, "u_ModelMat", model);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+
         
-        GS_Shader_UseProgram(lightShader);
-        glm_mat4_identity(model);
-        glm_translate(model, globalLight.position);
+        // GS_Shader_UseProgram(lightShader);
+        // glm_mat4_identity(model);
+        // glm_translate(model, globalLight.position);
+        // glm_scale_uni(model, 0.2f);
+        // GS_Shader_SetUniformMat4(lightShader, "u_ModelMat", model);
+        // GS_Shader_SetUniformMat4(lightShader, "u_ViewMat", view);
+        // GS_Shader_SetUniformMat4(lightShader, "u_ProjMat", proj);
 
-        GS_Shader_SetUniformMat4(lightShader, "u_ModelMat", model);
-        GS_Shader_SetUniformMat4(lightShader, "u_ViewMat", view);
-        GS_Shader_SetUniformMat4(lightShader, "u_ProjMat", proj);
-
-        glBindVertexArray(v_array);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // glBindVertexArray(v_array);
+        // glDrawArrays(GL_TRIANGLES, 0, 36);
         
         // UI render
         ImGui_ImplOpenGL3_NewFrame();
@@ -264,7 +289,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
             {
                 case GLFW_KEY_R:
                 {
-                    GS_Shader_RecompileProgram(globalShader);
+                    GS_Shader_RecompileAll();
                     break;
                 }
                 case GLFW_KEY_ESCAPE:

@@ -12,6 +12,8 @@ typedef unsigned int GS_ShaderHandle;
 
 GS_ShaderHandle GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath);
 void GS_Shader_RecompileProgram(const GS_ShaderHandle shader);
+void GS_Shader_RecompileAll(void);
+
 void GS_Shader_UseProgram(const GS_ShaderHandle shader);
 void GS_Shader_DeleteProgram(const GS_ShaderHandle handle);
 

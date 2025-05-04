@@ -65,7 +65,7 @@ GS_Time game_time;
 static float movementSpeed = 2.5f;
 float sensitivity = 0.1;
 static float CameraYPos = -0.4f;
-static float clearColor[3] = {0.1f, 0.1f, 0.1f};
+static float clearColor[3] = {0.945f, 0.76f, 0.403f};
 static float fontScale = 2.0f;
 
 
@@ -160,7 +160,7 @@ int main(void)
     // TODO implement movement
     while (!glfwWindowShouldClose(window))
     {
-        glClearColor(0, 0, 0, 1.0f);
+        glClearColor(clearColor[0], clearColor[1], clearColor[2], 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         key_movement(window);
 
@@ -208,7 +208,7 @@ int main(void)
             GS_Shader_SetUniformInt(globalShader, "spotLightActivated", 0);
         
         GS_Shader_SetUniformVec3f(globalShader, "dirLight.direction", (vec3) {-0.2f, -1.0f, -0.3f});
-        GS_Shader_SetUniformVec3f(globalShader, "dirLight.ambient", (vec3) {0.05f, 0.05f, 0.05f});
+        GS_Shader_SetUniformVec3f(globalShader, "dirLight.ambient", (vec3) {0.457f, 0.205f, 0.005f});
         GS_Shader_SetUniformVec3f(globalShader, "dirLight.diffuse", (vec3) {0.4f, 0.4f, 0.4f});
         GS_Shader_SetUniformVec3f(globalShader, "dirLight.specular", (vec3) {0.5f, 0.5f, 0.5f});
         

@@ -155,12 +155,12 @@ void main()
 {
     vec3 norm = normalize(Normal);
     vec3 result;
-    //result = GetDirLight(dirLight, norm);
+    result = GetDirLight(dirLight, norm);
     
-    // for (int i =0; i < NPOINT_LIGHTS; i++)
-    // {
-    //     result += GetPointLight(pointLight[i], norm);
-    // }
+    for (int i =0; i < NPOINT_LIGHTS; i++)
+    {
+        result += GetPointLight(pointLight[i], norm);
+    }
     if (spotLightActivated == 1)
     {
         result += GetSpotLight(spotLight, norm);

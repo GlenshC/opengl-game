@@ -10,10 +10,11 @@
 
 #include "shader.h"
 #include "texture.h"
-#include "gc_logs.h"
+#include "gc_example_data.h"
 #include "gc_material_const.h"
 #include "gc_constants.h"
-#include "gc_example_data.h"
+#include "gc_stdint.h"
+#include "gc_logs.h"
 #include "main.h"
 
 // #define GS_TEST_FACEBOX
@@ -95,6 +96,7 @@ GS_Light globalLight = {
     1.0f, 0.09f, 0.032f
 };
 
+static uint32 KEYSTATE = 0;
 
 int main(void)
 {
@@ -128,6 +130,7 @@ int main(void)
     //DATA
     static const float vertices[] = GS_EXAMPLE_DATA_CUBE;
     static const float cubePos[] = GS_DATA_CUBE_POSITIONS;
+    static const vec3 lightPos[] = GS_DATA_POINT_LIGHT_POSITION_VEC3;
 
     
     unsigned int v_array;
@@ -157,7 +160,7 @@ int main(void)
     // TODO implement movement
     while (!glfwWindowShouldClose(window))
     {
-        glClearColor(clearColor[0], clearColor[1], clearColor[2], 1.0f);
+        glClearColor(0, 0, 0, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         key_movement(window);
 
@@ -182,21 +185,69 @@ int main(void)
         GS_Shader_SetUniformInt(globalShader, "material.diffuse", 0);
         GS_Shader_SetUniformInt(globalShader, "material.specular", 1);
         //GS_Shader_SetUniformInt(globalShader, "material.emission", 2);
-        GS_Shader_SetUniformFloat(globalShader, "material.shininess", 64.0f);
+        GS_Shader_SetUniformFloat(globalShader, "material.shininess", 32.0f);
         
         // GS_Shader_SetUniformVec3f(globalShader, "light.position", globalLight.position);
         // GS_Shader_SetUniformVec3f(globalShader, "light.direction", globalLight.direction);
-        GS_Shader_SetUniformVec3f(globalShader, "light.position", globalCamera.position);
-        GS_Shader_SetUniformVec3f(globalShader, "light.direction", globalCamera.front);
-        GS_Shader_SetUniformFloat(globalShader, "light.cutoff", cos(glm_rad(30.5f)));
-
-
-        GS_Shader_SetUniformVec3f(globalShader, "light.ambient", globalLight.ambient);
-        GS_Shader_SetUniformVec3f(globalShader, "light.diffuse", globalLight.diffuse);
-        GS_Shader_SetUniformVec3f(globalShader, "light.specular", globalLight.specular);
-        GS_Shader_SetUniformFloat(globalShader, "light.constant", globalLight.constant);
-        GS_Shader_SetUniformFloat(globalShader, "light.linear", globalLight.linear);
-        GS_Shader_SetUniformFloat(globalShader, "light.quadratic", globalLight.quadratic);
+        if (KEYSTATE & (1 << 1))
+        {
+            GS_Shader_SetUniformInt(globalShader, "spotLightActivated", 1);
+            GS_Shader_SetUniformVec3f(globalShader, "spotLight.position", globalCamera.position);
+            GS_Shader_SetUniformVec3f(globalShader, "spotLight.direction", globalCamera.front);
+            GS_Shader_SetUniformVec3f(globalShader, "spotLight.ambient", globalLight.ambient);
+            GS_Shader_SetUniformVec3f(globalShader, "spotLight.diffuse", globalLight.diffuse);
+            GS_Shader_SetUniformVec3f(globalShader, "spotLight.specular", globalLight.specular);
+            GS_Shader_SetUniformFloat(globalShader, "spotLight.attenuation.constant", globalLight.constant);
+            GS_Shader_SetUniformFloat(globalShader, "spotLight.attenuation.linear", globalLight.linear);
+            GS_Shader_SetUniformFloat(globalShader, "spotLight.attenuation.quadratic", globalLight.quadratic);
+            GS_Shader_SetUniformFloat(globalShader, "spotLight.inner", cos(glm_rad(12.5f)));
+            GS_Shader_SetUniformFloat(globalShader, "spotLight.outer", cos(glm_rad(20.5f)));
+            
+        }
+        else
+            GS_Shader_SetUniformInt(globalShader, "spotLightActivated", 0);
+        
+        GS_Shader_SetUniformVec3f(globalShader, "dirLight.direction", (vec3) {-0.2f, -1.0f, -0.3f});
+        GS_Shader_SetUniformVec3f(globalShader, "dirLight.ambient", (vec3) {0.05f, 0.05f, 0.05f});
+        GS_Shader_SetUniformVec3f(globalShader, "dirLight.diffuse", (vec3) {0.4f, 0.4f, 0.4f});
+        GS_Shader_SetUniformVec3f(globalShader, "dirLight.specular", (vec3) {0.5f, 0.5f, 0.5f});
+        
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[0].position", lightPos[0]);
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[0].ambient", (vec3) {0.05f, 0.05f, 0.05f});
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[0].diffuse", (vec3) {0.8f, 0.8f, 0.8f});
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[0].specular", (vec3){1.0f, 1.0f, 1.0f});
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[0].attenuation.constant", 1.0f);
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[0].attenuation.linear",  0.09f);
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[0].attenuation.quadratic", 0.032f);
+        
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[1].position", lightPos[1]);
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[1].ambient", (vec3) {0.05f, 0.05f, 0.05f});
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[1].diffuse", (vec3) {0.8f, 0.8f, 0.8f});
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[1].specular", (vec3){1.0f, 1.0f, 1.0f});
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[1].attenuation.constant", 1.0f);
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[1].attenuation.linear",  0.09f);
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[1].attenuation.quadratic", 0.032f);
+        
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[2].position", lightPos[2]);
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[2].ambient", (vec3) {0.05f, 0.05f, 0.05f});
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[2].diffuse", (vec3) {0.8f, 0.8f, 0.8f});
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[2].specular", (vec3){1.0f, 1.0f, 1.0f});
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[2].attenuation.constant", 1.0f);
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[2].attenuation.linear",  0.09f);
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[2].attenuation.quadratic", 0.032f);
+        
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[3].position", lightPos[3]);
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[3].ambient", (vec3) {0.05f, 0.05f, 0.05f});
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[3].diffuse", (vec3) {0.8f, 0.8f, 0.8f});
+        GS_Shader_SetUniformVec3f(globalShader, "pointLight[3].specular", (vec3){1.0f, 1.0f, 1.0f});
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[3].attenuation.constant", 1.0f);
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[3].attenuation.linear",  0.09f);
+        GS_Shader_SetUniformFloat(globalShader, "pointLight[3].attenuation.quadratic", 0.032f);
+        /* 
+        dirLight;
+        pointLight[NPOINT_LIGHTS];
+        spotLight; 
+        */
         
         glBindVertexArray(v_array);
         for (int i =0; i < 10; i++)
@@ -209,53 +260,60 @@ int main(void)
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
-        
-        // GS_Shader_UseProgram(lightShader);
-        // glm_mat4_identity(model);
-        // glm_translate(model, globalLight.position);
-        // glm_scale_uni(model, 0.2f);
-        // GS_Shader_SetUniformMat4(lightShader, "u_ModelMat", model);
-        // GS_Shader_SetUniformMat4(lightShader, "u_ViewMat", view);
-        // GS_Shader_SetUniformMat4(lightShader, "u_ProjMat", proj);
+        GS_Shader_UseProgram(lightShader);
+        for (int i =0; i < 4; i++)
+        {
+            glm_mat4_identity(model);
+            glm_translate(model, lightPos[i]);
+            glm_scale_uni(model, 0.2f);
+            GS_Shader_SetUniformMat4(lightShader, "u_ModelMat", model);
+            GS_Shader_SetUniformMat4(lightShader, "u_ViewMat", view);
+            GS_Shader_SetUniformMat4(lightShader, "u_ProjMat", proj);
 
-        // glBindVertexArray(v_array);
-        // glDrawArrays(GL_TRIANGLES, 0, 36);
+            glBindVertexArray(v_array);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
+
         
         // UI render
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        igNewFrame();
         
+        if (!(KEYSTATE & 1))
         {
-            igBegin("Glensh App", NULL, 0);
-            igColorEdit3("Clear Color",clearColor, 0);
-            igSliderFloat("Font Scale", &fontScale, 1.0f, 4.0f, "%.1f", 0);
-            igSliderFloat("Movement Speed", &movementSpeed, 1.0f, 4.0f, "%.1f", 0);
-            igDragFloat3("Box", boxPos, 0.01f, -100.0f, 10.0f, "%.2f", 0);
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            igNewFrame();
             
-            igDragFloat3("light.ambient", globalLight.ambient, 0.001f, 0.0f, 1.0f, "%.3f", 0);
-            igDragFloat3("light.diffuse", globalLight.diffuse, 0.001f, 0.0f, 1.0f, "%.3f", 0);
-            igDragFloat3("light.specular", globalLight.specular, 0.001f, 0.0f, 1.0f, "%.3f", 0);
-
-            igText("Application average %.3f ms/frame (%.1f FPS)",
-                   1000.0f / igGetIO()->Framerate,
-                   igGetIO()->Framerate);
-            igText("Pitch: %.2f, Yaw: %.2f",
-                   globalCamera.pitch,
-                   globalCamera.yaw);
-            igText("Position: %.2f, %.2f, %.2f",
-                   globalCamera.position[0],
-                   globalCamera.position[1],
-                   globalCamera.position[2]);
-            igText("FOV: %.2f",
-                   globalCamera.fov);
-
-            igEnd();
+            {
+                igBegin("Glensh App", NULL, 0);
+                igColorEdit3("Clear Color",clearColor, 0);
+                igSliderFloat("Font Scale", &fontScale, 1.0f, 4.0f, "%.1f", 0);
+                igSliderFloat("Movement Speed", &movementSpeed, 1.0f, 4.0f, "%.1f", 0);
+                igDragFloat3("Box", boxPos, 0.01f, -100.0f, 10.0f, "%.2f", 0);
+                
+                igDragFloat3("light.ambient", globalLight.ambient, 0.001f, 0.0f, 1.0f, "%.3f", 0);
+                igDragFloat3("light.diffuse", globalLight.diffuse, 0.001f, 0.0f, 1.0f, "%.3f", 0);
+                igDragFloat3("light.specular", globalLight.specular, 0.001f, 0.0f, 1.0f, "%.3f", 0);
+    
+                igText("Application average %.3f ms/frame (%.1f FPS)",
+                       1000.0f / igGetIO()->Framerate,
+                       igGetIO()->Framerate);
+                igText("Pitch: %.2f, Yaw: %.2f",
+                       globalCamera.pitch,
+                       globalCamera.yaw);
+                igText("Position: %.2f, %.2f, %.2f",
+                       globalCamera.position[0],
+                       globalCamera.position[1],
+                       globalCamera.position[2]);
+                igText("FOV: %.2f",
+                       globalCamera.fov);
+    
+                igEnd();
+            }
+            
+            igRender();
+            io->FontGlobalScale = fontScale;    
+            ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData()); // ImGUI Section END
         }
-        
-        igRender();
-        io->FontGlobalScale = fontScale;    
-        ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData()); // ImGUI Section END
         
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -278,7 +336,6 @@ void Window_FramebufferSizeCallback(GLFWwindow *window, int width, int height)
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     // 0pos = enable/disabled cursor
-    static int state = 0;
     
 
     switch(action)
@@ -292,14 +349,23 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
                     GS_Shader_RecompileAll();
                     break;
                 }
+                case GLFW_KEY_F:
+                {
+                    KEYSTATE ^= (1 << 1);
+                    if (KEYSTATE & (1 << 1))
+                        GC_LOG("Flashlight Activated\n");
+                    else
+                        GC_LOG("Flashlight Deactivated\n");
+                    break;
+                }
                 case GLFW_KEY_ESCAPE:
                 {
-                    // default is normal
-                    if (state & 1)
-                        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-                    else
+                    // default is normal, 0 state
+                    KEYSTATE ^= 1;
+                    if (KEYSTATE & 1)
                         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-                    state ^= 1;
+                    else
+                        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
                     break;
                 }

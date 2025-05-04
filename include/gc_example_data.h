@@ -57,6 +57,14 @@
     -1.3f,  1.0f,  -1.5f  \
 }
 
+#define GS_DATA_POINT_LIGHT_POSITION_VEC3 \
+{                           \
+    { 0.7f,  0.2f,   2.0f}, \
+    { 2.3f, -3.3f,  -4.0f}, \
+    {-4.0f,  2.0f, -12.0f}, \
+    { 0.0f,  0.0f,  -3.0f}  \
+}
+
 
 #endif
 

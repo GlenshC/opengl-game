@@ -53,6 +53,7 @@ void *GC_STR_strcpy_internal(char *dest, const char *src, int n, int max, const 
     *(dest+(n)) = 0;
 }
 
+
 /* Implement read batch of file (malloc a batch of file)
 G_String *G_ReadMultipleFiles(const char** paths, int n);
 */

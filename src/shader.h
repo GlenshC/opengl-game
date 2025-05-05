@@ -1,14 +1,14 @@
 #if !defined(SHADER_H)
 #define SHADER_H
 
+#include "types.h"
+
 #define GS_SHADER_MAX_PATH 512
 #define GS_SHADER_MAX_PROGRAMS 256
 /*
     Shader.renderID
      0 - an error occured
 */ 
-
-typedef unsigned int GS_ShaderHandle;
 
 GS_ShaderHandle GS_Shader_CreateProgram(const char* vertexPath, const char* fragmentPath);
 void GS_Shader_RecompileProgram(const GS_ShaderHandle shader);

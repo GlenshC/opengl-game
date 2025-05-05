@@ -8,10 +8,16 @@
 #define MAX_TEXTURES 1024
 #endif
 
+typedef enum GSTextureType{
+    TEXTURE2D,
+    TEXTURE3D
+} GSTextureType;
+
 typedef unsigned char BYTE;
 typedef unsigned int GSTextureID;
 typedef struct {
     GSTextureID textures[MAX_TEXTURES];
+    GSTextureType type[MAX_TEXTURES];
     size_t size;
 } TEXTURES;
 

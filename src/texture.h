@@ -4,11 +4,11 @@
 // -DGS_TEXTURE_DEFAULT_PARAMETERS
 
 #include <glad/glad.h>
+#include "types.h"
 
 #define MAX_TEXTURES 256
 #define GS_TEXTURE_DEFAULT_PARAMETERS
 
-typedef unsigned int GSTextureHandle;
 GSTextureHandle GS_GenTexture2D(char const *path, int alpha);
 void GS_ActiveTexture(unsigned int index, GLenum texture_type, GSTextureHandle handle);
 void GS_SetTextureWrap(GLenum target, GLenum type);
